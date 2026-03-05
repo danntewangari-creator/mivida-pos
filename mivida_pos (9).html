@@ -1,0 +1,2126 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Mi Vida Mineral Water — POS</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💧</text></svg>" />
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: #0a0520; overflow: hidden; }
+    #root { min-height: 100vh; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.25} }
+  </style>
+  <script>window.__FIREBASE_DB_URL__ = 'https://mivida-pos-8813b-default-rtdb.firebaseio.com/';</script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useCallback } = React;
+const STYLE = `
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700;800;900&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Cinzel:wght@400;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Cormorant Garamond', serif; background: linear-gradient(145deg,#0a0520,#1a0540,#0d1545); min-height:100vh; }
+  :root {
+    --ocean: #0a0520;
+    --deep: #130a35;
+    --mid: #1e1050;
+    --teal: #00aaff;
+    --aqua: #00ddff;
+    --foam: #ffffff;
+    --white: #ffffff;
+    --gold: #ff44cc;
+    --red: #ff2255;
+    --green: #00ee88;
+    --purple: #cc00ff;
+    --yellow: #ffdd00;
+    --pink: #ff66bb;
+    --blue: #2266ff;
+    --card: rgba(255,255,255,0.07);
+    --border: rgba(180,100,255,0.3);
+  }
+  .syne { font-family: 'Playfair Display', serif; }
+  .pos-wrap { min-height: 100vh; background: var(--ocean); color: var(--white); display:flex; flex-direction:column; }
+  /* Header */
+  .header { background: linear-gradient(135deg, #1a0040 0%, #2200aa 40%, #0044cc 100%); 
+    border-bottom: 1px solid var(--border); padding: 12px 20px;
+    display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100;
+    box-shadow: 0 4px 24px rgba(0,180,216,0.15); }
+  .brand-title { font-family:'Playfair Display',serif; font-weight:800; font-size:1.2rem; color:var(--aqua); letter-spacing:1px; display:none; }
+  .brand-sub { font-size:0.65rem; color:#d08ad0; opacity:0.95; letter-spacing:3px; text-transform:uppercase; font-weight:600; font-family:'Cinzel',serif; }
+  .header-time { text-align:right; }
+  .clock { font-family:'Playfair Display',serif; font-size:1.2rem; font-weight:700; color:#88ddff; }
+  .date-str { font-size:0.68rem; color:var(--foam); opacity:0.6; }
+  /* Nav */
+  .bottom-nav { position:fixed; bottom:0; left:0; right:0; background:linear-gradient(135deg,#0d0030,#160050,#0a0040); 
+    border-top:2px solid rgba(200,0,255,0.4); display:flex; z-index:100; }
+  .nav-btn { flex:1; padding:10px 4px 8px; border:none; background:transparent; color:rgba(255,255,255,0.5);
+    cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:3px; transition:all 0.2s;
+    font-family:'Cinzel',serif; font-size:0.72rem; font-weight:600; letter-spacing:0.5px; }
+  .nav-btn.active { color:#ff44cc; }
+  .nav-btn.active .nav-icon { background:rgba(255,68,204,0.2); border-radius:12px; }
+  .nav-icon { width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.3rem; }
+  .content { flex:1; padding:16px; padding-bottom:80px; overflow-y:auto; }
+  /* Cards */
+  .card { background:linear-gradient(145deg,rgba(30,10,70,0.85),rgba(15,5,40,0.9)); border:1px solid rgba(150,60,255,0.3); border-radius:16px; padding:16px; margin-bottom:14px; box-shadow:0 4px 20px rgba(100,0,200,0.15); }
+  .card-title { font-family:'Cinzel',serif; font-weight:700; font-size:0.78rem; color:#ff88ee; 
+    letter-spacing:2px; text-transform:uppercase; margin-bottom:12px; text-shadow:0 0 10px rgba(255,100,220,0.5); }
+  /* Products */
+  .section-tabs { display:flex; gap:8px; margin-bottom:14px; }
+  .tab-pill { padding:7px 18px; border-radius:20px; border:1px solid rgba(180,60,255,0.4); background:rgba(100,0,200,0.1);
+    color:rgba(255,255,255,0.65); cursor:pointer; font-size:0.75rem; font-family:'Cinzel',serif;
+    font-weight:600; transition:all 0.2s; }
+  .tab-pill.active { background:linear-gradient(135deg,#cc00ff,#2266ff); border-color:transparent; color:#fff; font-weight:700; box-shadow:0 4px 14px rgba(180,0,255,0.4); }
+  .product-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:14px; }
+  .product-card { background:linear-gradient(145deg,rgba(40,10,80,0.8),rgba(20,5,60,0.9)); border:1px solid rgba(180,80,255,0.35); border-radius:14px; padding:14px 10px;
+    cursor:pointer; transition:all 0.18s; text-align:center; position:relative; overflow:hidden; }
+  .product-card:hover { border-color:#ff44cc; background:linear-gradient(145deg,rgba(255,68,204,0.15),rgba(0,180,255,0.15)); transform:translateY(-2px); box-shadow:0 8px 24px rgba(255,68,204,0.25); }
+  .product-card:active { transform:scale(0.97); }
+  .product-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; 
+    background:linear-gradient(90deg,#ff44cc,#00ddff,#ffdd00); opacity:0; transition:opacity 0.2s; }
+  .product-card:hover::before { opacity:1; }
+  .prod-size { font-family:'Playfair Display',serif; font-weight:800; font-size:1.25rem; color:var(--white); margin-bottom:4px; }
+  .prod-name { font-size:0.72rem; color:rgba(255,255,255,0.65); margin-bottom:6px; text-transform:uppercase; letter-spacing:1.5px; font-family:'Cinzel',serif; }
+  .prod-price { font-family:'Playfair Display',serif; font-weight:700; font-size:1.1rem; color:var(--aqua); }
+  .prod-price span { font-size:0.6rem; }
+  /* Cart */
+  .cart-section { background:linear-gradient(145deg,rgba(25,5,60,0.8),rgba(10,2,30,0.9)); border:1px solid rgba(150,60,255,0.35); border-radius:16px; padding:14px; }
+  .cart-title-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+  .cart-empty { text-align:center; padding:20px; color:rgba(255,255,255,0.3); font-size:0.8rem; }
+  .cart-item { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.05); }
+  .cart-item-name { flex:1; font-size:1rem; color:var(--white); }
+  .cart-item-price { font-size:1rem; color:var(--teal); font-weight:600; min-width:60px; text-align:right; }
+  .qty-ctrl { display:flex; align-items:center; gap:4px; }
+  .qty-btn { width:24px; height:24px; border-radius:6px; border:1px solid var(--border); background:var(--mid);
+    color:var(--white); cursor:pointer; font-size:0.9rem; display:flex; align-items:center; justify-content:center; }
+  .qty-num { min-width:20px; text-align:center; font-size:0.8rem; font-weight:600; color:var(--aqua); }
+  .cart-total { display:flex; justify-content:space-between; align-items:center; margin-top:12px; 
+    padding-top:12px; border-top:1px solid var(--border); }
+  .total-label { font-family:'Playfair Display',serif; font-weight:700; font-size:0.9rem; }
+  .total-amount { font-family:'Playfair Display',serif; font-weight:800; font-size:1.7rem; color:var(--aqua); }
+  .checkout-btn { width:100%; margin-top:12px; padding:15px; background:linear-gradient(135deg,#cc00ff,#2266ff,#00ddff);
+    border:none; border-radius:14px; color:#fff; font-family:'Playfair Display',serif; font-weight:800;
+    font-size:1.1rem; cursor:pointer; transition:all 0.2s; letter-spacing:1px; text-shadow:0 1px 4px rgba(0,0,0,0.3); }
+  .checkout-btn:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(200,0,255,0.5); }
+  .checkout-btn:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
+  /* Payment Modal */
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:200; display:flex; align-items:center; justify-content:center; padding:16px; }
+  .modal { background:linear-gradient(145deg,#150040,#0d0030); border:2px solid rgba(200,0,255,0.4); border-radius:22px; padding:24px; width:100%; max-width:380px; box-shadow:0 20px 60px rgba(150,0,255,0.3); }
+  .modal-title { font-family:'Playfair Display',serif; font-weight:800; font-size:1.1rem; color:var(--aqua); margin-bottom:16px; }
+  .modal-total { font-family:'Playfair Display',serif; font-size:2.4rem; font-weight:800; color:var(--aqua); text-align:center; margin-bottom:20px; }
+  .pay-methods { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
+  .pay-btn { padding:14px; border-radius:12px; border:2px solid var(--border); background:var(--card);
+    color:var(--white); cursor:pointer; font-family:'Playfair Display',serif; font-weight:700; font-size:0.9rem;
+    transition:all 0.2s; display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .pay-btn.selected { border-color:var(--teal); background:rgba(0,180,216,0.15); color:var(--aqua); }
+  .pay-icon { font-size:1.5rem; }
+  .input-field { width:100%; padding:13px 15px; background:var(--card); border:1px solid var(--border);
+    border-radius:10px; color:var(--white); font-family:'Cormorant Garamond',serif; font-size:1.05rem; margin-bottom:10px; }
+  .input-field:focus { outline:none; border-color:var(--teal); }
+  .input-label { font-size:0.72rem; color:rgba(255,255,255,0.5); margin-bottom:4px; }
+  .change-display { background:rgba(0,180,216,0.1); border:1px solid var(--teal); border-radius:10px; padding:10px 14px;
+    margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; }
+  .change-label { font-size:0.75rem; color:var(--foam); }
+  .change-amount { font-family:'Playfair Display',serif; font-weight:800; font-size:1.1rem; color:var(--gold); }
+  .modal-actions { display:flex; gap:10px; }
+  .btn-cancel { flex:1; padding:12px; background:rgba(255,255,255,0.05); border:1px solid var(--border);
+    border-radius:10px; color:rgba(255,255,255,0.6); cursor:pointer; font-family:'Cormorant Garamond',serif; font-weight:600; }
+  .btn-confirm { flex:2; padding:13px; background:linear-gradient(135deg,#cc00ff,#2266ff);
+    border:none; border-radius:12px; color:#fff; font-family:'Playfair Display',serif; font-weight:800;
+    cursor:pointer; font-size:1rem; transition:all 0.2s; text-shadow:0 1px 3px rgba(0,0,0,0.4); }
+  .btn-confirm:hover { box-shadow:0 4px 16px rgba(0,180,216,0.4); }
+  /* Success */
+  .success-modal { text-align:center; }
+  .success-icon { font-size:3rem; margin-bottom:12px; }
+  .success-title { font-family:'Playfair Display',serif; font-weight:800; font-size:1.2rem; color:var(--green); margin-bottom:4px; }
+  .success-sub { font-size:0.8rem; color:rgba(255,255,255,0.5); margin-bottom:16px; }
+  /* Inventory */
+  .inv-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .inv-item { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px; }
+  .inv-item-name { font-size:0.7rem; color:rgba(255,255,255,0.5); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
+  .inv-item-qty { font-family:'Playfair Display',serif; font-weight:800; font-size:1.2rem; color:var(--white); }
+  .inv-item-unit { font-size:0.65rem; color:var(--teal); }
+  .inv-ctrl { display:flex; align-items:center; gap:6px; margin-top:8px; }
+  .inv-input { flex:1; padding:6px 8px; background:rgba(255,255,255,0.05); border:1px solid var(--border);
+    border-radius:8px; color:var(--white); font-size:0.8rem; text-align:center; }
+  .inv-input:focus { outline:none; border-color:var(--teal); }
+  .inv-add-btn { padding:6px 10px; background:var(--teal); border:none; border-radius:8px; color:var(--ocean);
+    cursor:pointer; font-weight:700; font-size:0.75rem; }
+  .meter-section { margin-bottom:14px; }
+  .meter-form { display:flex; gap:8px; align-items:flex-end; }
+  .meter-input-wrap { flex:1; }
+  .meter-submit { padding:10px 16px; background:var(--teal); border:none; border-radius:10px; color:var(--ocean);
+    font-family:'Playfair Display',serif; font-weight:700; cursor:pointer; }
+  .meter-history { margin-top:10px; }
+  .meter-row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.05);
+    font-size:0.75rem; }
+  .meter-date { color:rgba(255,255,255,0.4); }
+  .meter-reading { color:var(--teal); font-weight:600; font-family:'Playfair Display',serif; }
+  .meter-diff { color:var(--gold); }
+  /* Reports */
+  .report-tabs { display:flex; gap:8px; margin-bottom:14px; }
+  .stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+  .stat-card { background:linear-gradient(145deg,rgba(30,10,70,0.9),rgba(10,5,35,0.95)); border:1px solid rgba(150,60,255,0.35); border-radius:14px; padding:14px; box-shadow:0 2px 12px rgba(100,0,200,0.12); }
+  .stat-label { font-size:0.67rem; color:rgba(255,255,255,0.4); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
+  .stat-value { font-family:'Playfair Display',serif; font-weight:800; font-size:1.5rem; color:var(--white); }
+  .stat-value.teal { color:var(--teal); }
+  .stat-value.gold { color:var(--gold); }
+  .stat-value.green { color:var(--green); }
+  .ranking-list { }
+  .rank-item { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.05); }
+  .rank-num { font-family:'Playfair Display',serif; font-weight:800; font-size:0.8rem; color:rgba(255,255,255,0.3);
+    min-width:20px; }
+  .rank-num.top { color:var(--gold); }
+  .rank-name { flex:1; font-size:1rem; color:var(--white); }
+  .rank-bar-wrap { width:80px; height:6px; background:rgba(255,255,255,0.1); border-radius:3px; }
+  .rank-bar { height:6px; border-radius:3px; background:linear-gradient(90deg,var(--teal),var(--aqua)); }
+  .rank-bar.slow { background:linear-gradient(90deg,#e63946,#f4a261); }
+  .rank-qty { font-size:0.75rem; color:var(--teal); font-weight:600; min-width:40px; text-align:right; }
+  .rank-rev { font-size:0.7rem; color:rgba(255,255,255,0.4); min-width:60px; text-align:right; }
+  .sales-log { }
+  .sale-row { padding:8px; background:var(--card); border:1px solid var(--border); border-radius:10px; margin-bottom:6px; }
+  .sale-row-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+  .sale-time { font-size:0.7rem; color:rgba(255,255,255,0.4); }
+  .sale-total-val { font-family:'Playfair Display',serif; font-weight:700; font-size:0.9rem; color:var(--teal); }
+  .sale-items { font-size:0.85rem; color:rgba(255,255,255,0.5); }
+  .sale-method { display:inline-block; padding:2px 8px; border-radius:10px; font-size:0.62rem; font-weight:600; }
+  .method-cash { background:rgba(46,196,182,0.15); color:var(--green); }
+  .method-mpesa { background:rgba(244,162,97,0.15); color:var(--gold); }
+  .empty-state { text-align:center; padding:30px; color:rgba(255,255,255,0.25); font-size:0.8rem; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:0.6rem; font-weight:700;
+    background:rgba(0,180,216,0.15); color:var(--teal); border:1px solid rgba(0,180,216,0.2); }
+  .clear-btn { font-size:0.65rem; color:rgba(255,255,255,0.3); background:none; border:none; cursor:pointer; padding:2px 6px; }
+  .clear-btn:hover { color:var(--red); }
+  .water-drop { display:inline-block; animation: float 3s ease-in-out infinite; }
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+  .mpesa-ref { padding:8px 12px; background:rgba(244,162,97,0.1); border:1px solid rgba(244,162,97,0.3);
+    border-radius:8px; font-size:0.72rem; color:var(--foam); margin-bottom:10px; }
+  .section-divider { font-family:'Playfair Display',serif; font-size:0.65rem; font-weight:700; color:rgba(255,255,255,0.25);
+    text-transform:uppercase; letter-spacing:1.5px; margin:14px 0 8px; }
+  .btn-danger { padding:8px 14px; background:rgba(230,57,70,0.1); border:1px solid rgba(230,57,70,0.3);
+    border-radius:8px; color:var(--red); cursor:pointer; font-size:0.72rem; font-weight:600; }
+  .btn-danger:hover { background:rgba(230,57,70,0.2); }
+`;
+
+const PRODUCTS = {
+  refill: [
+    { id: 'r1l', name: 'Refill', size: '1L', price: 10, category: 'refill', liters: 1 },
+    { id: 'r5l', name: 'Refill', size: '5L', price: 50, category: 'refill', liters: 5 },
+    { id: 'r10l', name: 'Refill', size: '10L', price: 90, category: 'refill', liters: 10 },
+    { id: 'r20l', name: 'Refill', size: '20L', price: 180, category: 'refill', liters: 20 },
+  ],
+  packaging: [
+    { id: 'p500ml', name: 'Bottle', size: '500ml', price: 30, category: 'packaging', liters: 0.5 },
+    { id: 'p1l', name: 'Bottle', size: '1L', price: 50, category: 'packaging', liters: 1 },
+    { id: 'p5l', name: 'Bottle', size: '5L', price: 150, category: 'packaging', liters: 5 },
+    { id: 'p10l', name: 'Bottle', size: '10L', price: 250, category: 'packaging', liters: 10 },
+    { id: 'p20s', name: 'Soft Bottle', size: '20L', price: 400, category: 'packaging', liters: 20 },
+    { id: 'p20h', name: 'Hard Bottle', size: '20L', price: 1500, category: 'packaging', liters: 20 },
+    { id: 'c500', name: 'Crate 24pcs', size: '500ml', price: 350, category: 'packaging', liters: 12 },
+    { id: 'c1l', name: 'Crate 12pcs', size: '1L', price: 350, category: 'packaging', liters: 12 },
+  ]
+};
+
+const ALL_PRODUCTS = [...PRODUCTS.refill, ...PRODUCTS.packaging];
+
+function fmt(n) { return 'KSH ' + Number(n).toLocaleString(); }
+function fmtShort(n) { return Number(n).toLocaleString(); }
+function toDateStr(ts) { return new Date(ts).toLocaleDateString('en-KE', { day:'2-digit', month:'short', year:'numeric' }); }
+function toTimeStr(ts) { return new Date(ts).toLocaleTimeString('en-KE', { hour:'2-digit', minute:'2-digit' }); }
+function todayKey() { return new Date().toISOString().slice(0, 10); }
+function weekStart() { const d = new Date(); d.setDate(d.getDate() - d.getDay()); d.setHours(0,0,0,0); return d.getTime(); }
+function monthStart() { const d = new Date(); d.setDate(1); d.setHours(0,0,0,0); return d.getTime(); }
+
+// ── FIREBASE CLOUD SYNC ENGINE ─────────────────────────────
+// Firebase URL: auto-loads from localStorage — set once, works forever
+function getFirebaseUrl() {
+  const stored = localStorage.getItem('mivida_firebase_url');
+  const hardcoded = (window.__FIREBASE_DB_URL__ || '').replace(/\/$/,'');
+  return (stored || hardcoded).replace(/\/$/,'').trim();
+}
+let FIREBASE_DB_URL = getFirebaseUrl();
+// Auto-reconnect on every load if URL exists
+if (FIREBASE_DB_URL) {
+  console.log('✅ Firebase auto-connected:', FIREBASE_DB_URL);
+}
+
+// Track sync health for UI indicator
+const syncState = { ok: null, lastError: null, lastWrite: null };
+
+async function firebaseGet(key) {
+  const res = await fetch(`${FIREBASE_DB_URL}/mivida/${key}.json`, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.json();
+}
+
+async function firebaseSet(key, val) {
+  const res = await fetch(`${FIREBASE_DB_URL}/mivida/${key}.json`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(val)
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.json();
+}
+
+async function storageGet(key) {
+  if (FIREBASE_DB_URL) {
+    try {
+      const data = await firebaseGet(key);
+      syncState.ok = true; syncState.lastError = null;
+      // Also keep local in sync
+      try { localStorage.setItem('mivida_' + key, JSON.stringify(data)); } catch(e) {}
+      return data;
+    } catch(e) {
+      syncState.ok = false; syncState.lastError = e.message;
+      console.warn('Firebase GET failed:', e.message);
+    }
+  }
+  // Fallback to local
+  try { const v = localStorage.getItem('mivida_' + key); return v ? JSON.parse(v) : null; } catch { return null; }
+}
+
+async function storageSet(key, val) {
+  // Always save locally first (instant)
+  try { localStorage.setItem('mivida_' + key, JSON.stringify(val)); } catch(e) {}
+
+  if (FIREBASE_DB_URL) {
+    try {
+      await firebaseSet(key, val);
+      syncState.ok = true; syncState.lastError = null; syncState.lastWrite = new Date();
+    } catch(e) {
+      syncState.ok = false; syncState.lastError = e.message;
+      console.warn('Firebase SET failed:', e.message);
+      // Schedule retry in 3s
+      setTimeout(async () => {
+        try { await firebaseSet(key, val); syncState.ok = true; syncState.lastError = null; } catch(e2) {}
+      }, 3000);
+    }
+  }
+}
+
+// On startup: if Firebase is empty but local has data, migrate it up
+async function migrateLocalToFirebase() {
+  if (!FIREBASE_DB_URL) return;
+  try {
+    const remoteSales = await firebaseGet('sales');
+    if (!remoteSales || (Array.isArray(remoteSales) && remoteSales.length === 0)) {
+      const localSales = localStorage.getItem('mivida_sales');
+      if (localSales) {
+        const parsed = JSON.parse(localSales);
+        if (parsed && parsed.length > 0) {
+          await firebaseSet('sales', parsed);
+          console.log('Migrated', parsed.length, 'local sales to Firebase');
+        }
+      }
+    }
+  } catch(e) { console.warn('Migration check failed:', e.message); }
+}
+if (FIREBASE_DB_URL) setTimeout(migrateLocalToFirebase, 1000);
+
+// ── DEVICE PRESENCE SYSTEM ─────────────────────────────────
+// Generates a stable device ID stored in localStorage
+function getDeviceId() {
+  let id = localStorage.getItem('mivida_device_id');
+  if (!id) {
+    id = 'device_' + Math.random().toString(36).substr(2, 8).toUpperCase();
+    localStorage.setItem('mivida_device_id', id);
+  }
+  return id;
+}
+
+// Guess a friendly device name from userAgent
+function getDeviceName() {
+  const stored = localStorage.getItem('mivida_device_name');
+  if (stored) return stored;
+  const ua = navigator.userAgent;
+  if (/iPhone/.test(ua)) return 'iPhone';
+  if (/iPad/.test(ua)) return 'iPad';
+  if (/Android/.test(ua)) {
+    const m = ua.match(/Android[^;]*;\s*([^)]+)\)/);
+    return m ? m[1].trim().split(' ').slice(0,2).join(' ') : 'Android';
+  }
+  if (/Windows/.test(ua)) return 'Windows PC';
+  if (/Mac/.test(ua)) return 'MacBook';
+  return 'Browser';
+}
+
+const DEVICE_ID = getDeviceId();
+const DEVICE_NAME = getDeviceName();
+
+async function heartbeat() {
+  if (!FIREBASE_DB_URL) return;
+  try {
+    await fetch(`${FIREBASE_DB_URL}/mivida_admin/presence/${DEVICE_ID}.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: DEVICE_NAME,
+        lastSeen: Date.now(),
+        screen: window.__currentScreen__ || 'pos'
+      })
+    });
+  } catch(e) {}
+}
+
+async function fetchPresence() {
+  if (!FIREBASE_DB_URL) return {};
+  try {
+    const res = await fetch(`${FIREBASE_DB_URL}/mivida_admin/presence.json`, { cache: 'no-store' });
+    if (!res.ok) return {};
+    return await res.json() || {};
+  } catch(e) { return {}; }
+}
+
+// Start heartbeat: every 20s while page is open
+if (FIREBASE_DB_URL) {
+  heartbeat();
+  setInterval(heartbeat, 20000);
+  // Update screen on visibility change
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) heartbeat(); });
+}
+
+// ── CLOCK ──────────────────────────────────────────────────
+function Clock() {
+  const [t, setT] = useState(new Date());
+  useEffect(() => { const i = setInterval(() => setT(new Date()), 1000); return () => clearInterval(i); }, []);
+  return (
+    <div className="header-time">
+      <div className="clock">{t.toLocaleTimeString('en-KE', { hour:'2-digit', minute:'2-digit' })}</div>
+      <div className="date-str">{t.toLocaleDateString('en-KE', { weekday:'short', day:'2-digit', month:'short' })}</div>
+    </div>
+  );
+}
+
+
+
+
+// ── FIREBASE SETUP SCREEN ──────────────────────────────────
+function FirebaseSetup({ onSave, onSkip }) {
+  const [url, setUrl] = useState(localStorage.getItem('mivida_firebase_url') || '');
+  const [testing, setTesting] = useState(false);
+  const [status, setStatus] = useState(null); // null | 'ok' | 'error'
+  const [errMsg, setErrMsg] = useState('');
+
+  const testAndSave = async () => {
+    const cleaned = url.replace(/\/$/,'').trim();
+    if (!cleaned) { setStatus('error'); setErrMsg('Please paste your Firebase URL first'); return; }
+    if (cleaned.includes('console.firebase.google.com')) {
+      setStatus('error');
+      setErrMsg("❌ Wrong URL — that is the Firebase website address. You need the DATABASE url which ends in .firebaseio.com. Go to Realtime Database page and copy the URL shown at the top of that page.");
+      return;
+    }
+    if (!cleaned.includes('firebaseio.com') && !cleaned.includes('firebasedatabase.app')) {
+      setStatus('error');
+      setErrMsg('This does not look like a Firebase database URL. It should end in .firebaseio.com');
+      return;
+    }
+    if (!cleaned.startsWith('https://')) { setStatus('error'); setErrMsg('URL must start with https://'); return; }
+    setTesting(true); setStatus(null);
+    try {
+      const res = await fetch(`${cleaned}/mivida/ping.json`, {
+        method: 'PUT',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({t: Date.now()})
+      });
+      if (!res.ok) throw new Error(`Server replied: ${res.status}`);
+      localStorage.setItem('mivida_firebase_url', cleaned);
+      FIREBASE_DB_URL = cleaned;
+      setStatus('ok');
+      setTimeout(() => onSave(), 1200);
+    } catch(e) {
+      setStatus('error');
+      setErrMsg(e.message.includes('Failed to fetch') ? 'Cannot reach that URL — check it is correct and Firebase is in Test Mode' : e.message);
+    } finally { setTesting(false); }
+  };
+
+  return (
+    <div style={{minHeight:'100vh', background:'linear-gradient(145deg,#0a0520,#1a0540,#0d1545)',
+      display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'24px'}}>
+      <div style={{width:'100%', maxWidth:'360px'}}>
+        <div style={{textAlign:'center', marginBottom:'28px'}}>
+          <div style={{fontSize:'3rem', marginBottom:'8px'}}>🔥</div>
+          <div style={{fontFamily:"'Cinzel',serif", fontSize:'1.2rem', fontWeight:'700', letterSpacing:'3px',
+            background:'linear-gradient(135deg,#ff44cc,#00ddff)', WebkitBackgroundClip:'text',
+            WebkitTextFillColor:'transparent', marginBottom:'6px'}}>
+            CONNECT DATABASE
+          </div>
+          <div style={{fontSize:'0.85rem', color:'rgba(255,255,255,0.45)', fontFamily:"'Cormorant Garamond',serif",
+            lineHeight:'1.6'}}>
+            Paste your Firebase Realtime Database URL below to sync all devices
+          </div>
+        </div>
+
+        {/* Step guide */}
+        {[
+          ['1','Go to console.firebase.google.com'],
+          ['2','Add project → name it mivida-pos'],
+          ['3','Click Realtime Database → Create Database'],
+          ['4','Choose Test Mode → Enable'],
+          ['5','Copy the URL shown and paste below'],
+        ].map(([n, text]) => (
+          <div key={n} style={{display:'flex', gap:'10px', alignItems:'flex-start',
+            marginBottom:'8px'}}>
+            <div style={{width:'22px', height:'22px', borderRadius:'50%', flexShrink:0,
+              background:'linear-gradient(135deg,#cc00ff,#2266ff)',
+              display:'flex', alignItems:'center', justifyContent:'center',
+              fontFamily:"'Playfair Display',serif", fontWeight:'800', fontSize:'0.75rem', color:'#fff'}}>
+              {n}
+            </div>
+            <div style={{fontSize:'0.82rem', color:'rgba(255,255,255,0.6)',
+              fontFamily:"'Cormorant Garamond',serif", paddingTop:'3px', lineHeight:'1.4'}}>
+              {text}
+            </div>
+          </div>
+        ))}
+
+        {/* URL input */}
+        <div style={{marginTop:'20px', marginBottom:'12px'}}>
+          <div style={{fontFamily:"'Cinzel',serif", fontSize:'0.68rem', letterSpacing:'2px',
+            color:'rgba(255,255,255,0.4)', marginBottom:'8px', textTransform:'uppercase'}}>
+            Firebase Database URL
+          </div>
+          <input
+            value={url}
+            onChange={e => { setUrl(e.target.value); setStatus(null); }}
+            placeholder="https://mivida-pos-default-rtdb.firebaseio.com"
+            style={{width:'100%', padding:'14px 16px',
+              background:'rgba(255,255,255,0.06)', border:'1px solid rgba(150,60,255,0.4)',
+              borderRadius:'12px', color:'#fff', fontSize:'0.82rem',
+              fontFamily:'monospace', outline:'none',
+              boxShadow: status === 'ok' ? '0 0 0 2px #00ee88'
+                : status === 'error' ? '0 0 0 2px #ff2255' : 'none'}}
+          />
+          <div style={{marginTop:'6px', fontSize:'0.72rem', color:'rgba(255,255,255,0.3)',
+            fontFamily:"'Cinzel',serif", letterSpacing:'0.5px'}}>
+            ✓ Correct format ends in <span style={{color:'#00ddff'}}>.firebaseio.com</span>
+          </div>
+        </div>
+
+        {/* Status messages */}
+        {status === 'ok' && (
+          <div style={{display:'flex', alignItems:'center', gap:'8px', padding:'10px 14px',
+            background:'rgba(0,238,136,0.1)', border:'1px solid rgba(0,238,136,0.4)',
+            borderRadius:'10px', marginBottom:'12px'}}>
+            <span style={{fontSize:'1.2rem'}}>✅</span>
+            <span style={{color:'#00ee88', fontFamily:"'Cinzel',serif", fontSize:'0.78rem',
+              fontWeight:'700', letterSpacing:'1px'}}>Connected! Opening app...</span>
+          </div>
+        )}
+        {status === 'error' && (
+          <div style={{padding:'10px 14px', background:'rgba(255,34,85,0.1)',
+            border:'1px solid rgba(255,34,85,0.4)', borderRadius:'10px',
+            marginBottom:'12px', fontSize:'0.8rem', color:'#ff8888',
+            fontFamily:"'Cormorant Garamond',serif", lineHeight:'1.5'}}>
+            ⚠️ {errMsg}
+          </div>
+        )}
+
+        {/* Save button */}
+        <button onClick={testAndSave} disabled={testing}
+          style={{width:'100%', padding:'16px',
+            background: testing ? 'rgba(100,0,200,0.3)' : 'linear-gradient(135deg,#cc00ff,#2266ff)',
+            border:'none', borderRadius:'14px', color:'#fff', cursor: testing ? 'default' : 'pointer',
+            fontFamily:"'Playfair Display',serif", fontWeight:'800', fontSize:'1.05rem',
+            letterSpacing:'0.5px', marginBottom:'12px',
+            boxShadow: testing ? 'none' : '0 6px 20px rgba(150,0,255,0.35)'}}>
+          {testing ? '⏳ Testing connection...' : '🔗 Test & Connect'}
+        </button>
+
+        {/* Skip link */}
+        <button onClick={onSkip}
+          style={{width:'100%', padding:'12px', background:'transparent',
+            border:'1px solid rgba(255,255,255,0.1)', borderRadius:'12px',
+            color:'rgba(255,255,255,0.35)', cursor:'pointer', fontSize:'0.78rem',
+            fontFamily:"'Cinzel',serif", letterSpacing:'1px'}}>
+          Skip — use local only
+        </button>
+
+        {url && localStorage.getItem('mivida_firebase_url') && (
+          <button onClick={() => { localStorage.removeItem('mivida_firebase_url'); setUrl(''); FIREBASE_DB_URL=''; setStatus(null); }}
+            style={{width:'100%', marginTop:'8px', padding:'8px', background:'transparent',
+              border:'none', color:'rgba(255,100,100,0.4)', cursor:'pointer', fontSize:'0.7rem',
+              fontFamily:"'Cinzel',serif"}}>
+            Disconnect Firebase
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── APP LOGIN GATE ─────────────────────────────────────────
+const APP_PASSWORD = '7890';
+
+function LoginGate({ onEnter }) {
+  const [pwd, setPwd] = useState('');
+  const [error, setError] = useState(false);
+  const [shake, setShake] = useState(false);
+  const canvasRef = React.useRef(null);
+
+  // ── WATER SIMULATION ────────────────────────────────────
+  React.useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let W = canvas.width = window.innerWidth;
+    let H = canvas.height = window.innerHeight;
+    let animId;
+
+    // Particles
+    const COLORS = ['#00ddff','#ff44cc','#cc00ff','#00aaff','#ffffff','#ffdd00','#00ee88'];
+    const particles = [];
+    const drops = [];
+    const splashes = [];
+    const ripples = [];
+
+    // Spawn a falling drop
+    function spawnDrop() {
+      drops.push({
+        x: Math.random() * W,
+        y: -20,
+        vy: 4 + Math.random() * 6,
+        vx: (Math.random() - 0.5) * 1.5,
+        r: 3 + Math.random() * 6,
+        color: COLORS[Math.floor(Math.random() * COLORS.length)],
+        alpha: 0.7 + Math.random() * 0.3,
+        trail: [],
+      });
+    }
+
+    // Spawn a splash particle
+    function spawnSplash(x, y, color) {
+      for (let i = 0; i < 8 + Math.random() * 6; i++) {
+        const angle = (Math.random() * Math.PI) - Math.PI; // upward hemisphere
+        const speed = 2 + Math.random() * 6;
+        splashes.push({
+          x, y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 2,
+          r: 1 + Math.random() * 3,
+          alpha: 0.8 + Math.random() * 0.2,
+          color,
+          gravity: 0.25,
+        });
+      }
+      ripples.push({ x, y, r: 2, maxR: 40 + Math.random() * 40, alpha: 0.6, color });
+    }
+
+    // Water pool at bottom
+    const POOL_Y = H * 0.82;
+    const wavePoints = [];
+    const NUM_WAVES = 80;
+    for (let i = 0; i <= NUM_WAVES; i++) {
+      wavePoints.push({ x: (W / NUM_WAVES) * i, y: POOL_Y, vy: 0 });
+    }
+    function disturbWave(x) {
+      const idx = Math.round((x / W) * NUM_WAVES);
+      for (let d = -3; d <= 3; d++) {
+        const i = idx + d;
+        if (i >= 0 && i <= NUM_WAVES) {
+          wavePoints[i].vy -= (3 - Math.abs(d)) * 1.5;
+        }
+      }
+    }
+    function updateWaves() {
+      const K = 0.025, DAMP = 0.94, SPREAD = 0.12;
+      for (let i = 0; i <= NUM_WAVES; i++) {
+        wavePoints[i].vy += K * (POOL_Y - wavePoints[i].y);
+        wavePoints[i].y += wavePoints[i].vy;
+        wavePoints[i].vy *= DAMP;
+      }
+      for (let iter = 0; iter < 8; iter++) {
+        for (let i = 1; i < NUM_WAVES; i++) {
+          const diff = wavePoints[i].y - wavePoints[i-1].y;
+          wavePoints[i-1].vy += SPREAD * diff;
+          wavePoints[i].vy   -= SPREAD * diff;
+        }
+      }
+    }
+
+    function drawPool() {
+      // Main water body
+      ctx.save();
+      const grad = ctx.createLinearGradient(0, POOL_Y, 0, H);
+      grad.addColorStop(0,   'rgba(0,180,255,0.45)');
+      grad.addColorStop(0.3, 'rgba(100,0,220,0.35)');
+      grad.addColorStop(1,   'rgba(0,20,80,0.55)');
+      ctx.beginPath();
+      ctx.moveTo(0, H);
+      for (let i = 0; i <= NUM_WAVES; i++) {
+        ctx.lineTo(wavePoints[i].x, wavePoints[i].y);
+      }
+      ctx.lineTo(W, H);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // Shimmer line on wave surface
+      ctx.beginPath();
+      ctx.moveTo(0, wavePoints[0].y);
+      for (let i = 1; i <= NUM_WAVES; i++) {
+        const mx = (wavePoints[i-1].x + wavePoints[i].x) / 2;
+        const my = (wavePoints[i-1].y + wavePoints[i].y) / 2;
+        ctx.quadraticCurveTo(wavePoints[i-1].x, wavePoints[i-1].y, mx, my);
+      }
+      ctx.strokeStyle = 'rgba(150,220,255,0.5)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    let frame = 0;
+    function animate() {
+      animId = requestAnimationFrame(animate);
+      ctx.clearRect(0, 0, W, H);
+      frame++;
+
+      // Spawn drops at intervals
+      if (frame % 18 === 0) spawnDrop();
+
+      // Update & draw drops
+      for (let i = drops.length - 1; i >= 0; i--) {
+        const d = drops[i];
+        d.trail.push({x: d.x, y: d.y});
+        if (d.trail.length > 8) d.trail.shift();
+        d.x += d.vx; d.y += d.vy; d.vy += 0.3;
+
+        // Draw trail
+        for (let t = 0; t < d.trail.length; t++) {
+          const a = (t / d.trail.length) * d.alpha * 0.4;
+          ctx.beginPath();
+          ctx.arc(d.trail[t].x, d.trail[t].y, d.r * (t / d.trail.length) * 0.7, 0, Math.PI * 2);
+          ctx.fillStyle = d.color.replace(')', `,${a})`).replace('rgb(','rgba(').replace('#', 'rgba(').slice(0,4) === 'rgba' ? d.color.replace(')', `,${a})`) : d.color;
+          ctx.globalAlpha = a;
+          ctx.fill();
+        }
+        // Draw drop
+        ctx.globalAlpha = d.alpha;
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+        ctx.fillStyle = d.color;
+        ctx.shadowColor = d.color;
+        ctx.shadowBlur = 8;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
+
+        // Hit pool
+        if (d.y + d.r >= wavePoints[Math.round((d.x / W) * NUM_WAVES)]?.y || d.y > H) {
+          disturbWave(d.x);
+          spawnSplash(d.x, Math.min(d.y, POOL_Y), d.color);
+          drops.splice(i, 1);
+        }
+      }
+
+      // Update waves
+      updateWaves();
+      drawPool();
+
+      // Draw splashes
+      for (let i = splashes.length - 1; i >= 0; i--) {
+        const s = splashes[i];
+        s.x += s.vx; s.y += s.vy; s.vy += s.gravity; s.alpha -= 0.025;
+        if (s.alpha <= 0 || s.y > POOL_Y + 20) { splashes.splice(i, 1); continue; }
+        ctx.globalAlpha = s.alpha;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fillStyle = s.color;
+        ctx.shadowColor = s.color;
+        ctx.shadowBlur = 6;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
+      }
+
+      // Draw ripples
+      for (let i = ripples.length - 1; i >= 0; i--) {
+        const rp = ripples[i];
+        rp.r += 1.5; rp.alpha -= 0.018;
+        if (rp.alpha <= 0) { ripples.splice(i, 1); continue; }
+        ctx.globalAlpha = rp.alpha;
+        ctx.beginPath();
+        ctx.ellipse(rp.x, rp.y, rp.r, rp.r * 0.3, 0, 0, Math.PI * 2);
+        ctx.strokeStyle = rp.color;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    animate();
+
+    const resize = () => {
+      W = canvas.width = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+      for (let i = 0; i <= NUM_WAVES; i++) {
+        wavePoints[i].x = (W / NUM_WAVES) * i;
+        wavePoints[i].y = H * 0.82;
+      }
+    };
+    window.addEventListener('resize', resize);
+    return () => { cancelAnimationFrame(animId); window.removeEventListener('resize', resize); };
+  }, []);
+
+  const handleKey = (digit) => {
+    if (pwd.length >= 4) return;
+    const newPwd = pwd + digit;
+    setPwd(newPwd);
+    setError(false);
+    if (newPwd.length === 4) {
+      if (newPwd === APP_PASSWORD) {
+        onEnter();
+      } else {
+        setShake(true);
+        setError(true);
+        setTimeout(() => { setPwd(''); setShake(false); }, 700);
+      }
+    }
+  };
+
+  const handleDel = () => { setPwd(p => p.slice(0, -1)); setError(false); };
+
+  const dotColors = ['#ff44cc','#00ddff','#ffdd00','#00ee88'];
+
+  return (
+    <div style={{minHeight:'100vh', background:'linear-gradient(145deg,#0a0520,#1a0540,#0d1545)',
+      display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'20px'}}>
+
+      {/* Water canvas background */}
+      <canvas ref={canvasRef} style={{position:'fixed',inset:0,width:'100%',height:'100%',
+        pointerEvents:'none', zIndex:0}} />
+      {/* Subtle dark overlay blobs */}
+      <div style={{position:'fixed',inset:0,overflow:'hidden',pointerEvents:'none',zIndex:0}}>
+        {[
+          {color:'rgba(100,0,180,0.2)',size:'350px',top:'5%',left:'-10%'},
+          {color:'rgba(0,50,150,0.15)',size:'300px',top:'50%',right:'-5%'},
+        ].map((b,i) => (
+          <div key={i} style={{position:'absolute',width:b.size,height:b.size,borderRadius:'50%',
+            background:b.color,filter:'blur(80px)',top:b.top,left:b.left,right:b.right,bottom:b.bottom}} />
+        ))}
+      </div>
+
+      <div style={{position:'relative',zIndex:1,display:'flex',flexDirection:'column',alignItems:'center',width:'100%',maxWidth:'320px'}}>
+        {/* Logo area */}
+        <div style={{marginBottom:'6px',fontSize:'3.5rem'}}>💧</div>
+        <div style={{fontFamily:"'Cinzel',serif", fontSize:'1.6rem', fontWeight:'700', letterSpacing:'4px',
+          background:'linear-gradient(135deg,#ff44cc,#00ddff,#ffdd00)',
+          WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
+          marginBottom:'4px', textAlign:'center'}}>
+          MI VIDA
+        </div>
+        <div style={{fontFamily:"'Cinzel',serif", fontSize:'0.75rem', letterSpacing:'3px',
+          color:'rgba(255,255,255,0.5)', textTransform:'uppercase', marginBottom:'32px'}}>
+          Mineral Water · Mangu Branch
+        </div>
+
+        {/* PIN dots */}
+        <div style={{display:'flex', gap:'16px', marginBottom:'10px',
+          animation: shake ? 'shake 0.5s ease' : 'none'}}>
+          {[0,1,2,3].map(i => (
+            <div key={i} style={{width:'20px', height:'20px', borderRadius:'50%',
+              background: i < pwd.length ? dotColors[i] : 'rgba(255,255,255,0.1)',
+              border: '2px solid ' + (i < pwd.length ? dotColors[i] : 'rgba(255,255,255,0.25)'),
+              transition:'all 0.15s',
+              boxShadow: i < pwd.length ? `0 0 12px ${dotColors[i]}` : 'none'}} />
+          ))}
+        </div>
+        <div style={{height:'24px', marginBottom:'24px', display:'flex', alignItems:'center'}}>
+          {error
+            ? <div style={{color:'#ff2255', fontSize:'0.85rem', fontFamily:"'Cinzel',serif", letterSpacing:'1px'}}>Wrong Password</div>
+            : <div style={{color:'rgba(255,255,255,0.3)', fontSize:'0.8rem', fontFamily:"'Cinzel',serif", letterSpacing:'1px'}}>Enter 4-digit password</div>
+          }
+        </div>
+
+        {/* Numpad */}
+        <div style={{display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'12px', width:'100%'}}>
+          {[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map((k, i) => {
+            const colors = ['#ff44cc','#00ddff','#ffdd00','#00ee88','#ff6600','#cc00ff','#2266ff','#ff2255','#00ccaa','','#ffffff','#ff2255'];
+            return (
+              <button key={i}
+                onClick={() => k === '⌫' ? handleDel() : k !== '' ? handleKey(String(k)) : null}
+                style={{padding:'18px 10px', borderRadius:'14px',
+                  background: k === '' ? 'transparent'
+                    : `linear-gradient(145deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))`,
+                  border: k === '' ? 'none'
+                    : k === '⌫' ? '1px solid rgba(255,34,85,0.4)'
+                    : '1px solid rgba(255,255,255,0.12)',
+                  color: k === '' ? 'transparent' : (colors[i] || '#ffffff'),
+                  fontFamily:"'Playfair Display',serif", fontSize:'1.5rem', fontWeight:'800',
+                  cursor: k === '' ? 'default' : 'pointer',
+                  transition:'all 0.15s',
+                  boxShadow: k !== '' ? '0 2px 8px rgba(0,0,0,0.3)' : 'none',
+                  textShadow: k !== '' && k !== '⌫' ? `0 0 10px ${colors[i]}88` : 'none'
+                }}>
+                {k}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes shake {
+          0%,100%{transform:translateX(0)}
+          20%{transform:translateX(-10px)}
+          40%{transform:translateX(10px)}
+          60%{transform:translateX(-7px)}
+          80%{transform:translateX(7px)}
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// ── PIN LOCK ───────────────────────────────────────────────
+const ADMIN_PIN = '5678';       // Mi Vida Owner PIN — sees everything
+const MANAGER_PIN = '34314398'; // Mi Vida Manager PIN — sees reports, NOT devices
+
+function PinLock({ onUnlock, allowManager = false }) {
+  // Who is trying to log in: null = choose, 'admin' = owner, 'manager' = manager
+  const [role, setRole] = useState(allowManager ? null : 'admin');
+  const [pin, setPin] = useState('');
+  const [error, setError] = useState(false);
+  const [shake, setShake] = useState(false);
+
+  const targetPin = role === 'admin' ? ADMIN_PIN : MANAGER_PIN;
+  const pinLen = targetPin ? targetPin.length : 0;
+
+  const handleKey = (digit) => {
+    if (pin.length >= pinLen) return;
+    const newPin = pin + digit;
+    setPin(newPin);
+    setError(false);
+    if (newPin.length === pinLen) {
+      if (newPin === targetPin) {
+        onUnlock(role);
+      } else {
+        setShake(true);
+        setError(true);
+        setTimeout(() => { setPin(''); setShake(false); }, 700);
+      }
+    }
+  };
+
+  const handleDel = () => { setPin(p => p.slice(0, -1)); setError(false); };
+
+  const goBack = () => { setRole(null); setPin(''); setError(false); };
+
+  // ── ROLE SELECTOR SCREEN ──
+  if (allowManager && role === null) {
+    return (
+      <div style={{display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+        minHeight:'60vh', padding:'30px', gap:'16px'}}>
+        <div style={{fontSize:'2.2rem', marginBottom:'4px'}}>🔐</div>
+        <div style={{fontFamily:"'Cinzel',serif", fontSize:'0.8rem', letterSpacing:'3px',
+          color:'rgba(255,255,255,0.4)', textTransform:'uppercase', marginBottom:'20px'}}>
+          Select Your Role
+        </div>
+        {/* Owner button */}
+        <button onClick={() => setRole('admin')}
+          style={{width:'100%', maxWidth:'280px', padding:'20px 24px',
+            background:'linear-gradient(135deg,rgba(204,0,255,0.15),rgba(34,102,255,0.15))',
+            border:'2px solid rgba(204,0,255,0.5)', borderRadius:'16px',
+            cursor:'pointer', transition:'all 0.2s', textAlign:'left', display:'flex',
+            alignItems:'center', gap:'16px'}}>
+          <span style={{fontSize:'2rem'}}>👑</span>
+          <div>
+            <div style={{fontFamily:"'Playfair Display',serif", fontWeight:'800',
+              fontSize:'1.1rem', color:'#ff44cc', marginBottom:'3px'}}>Owner</div>
+            <div style={{fontFamily:"'Cinzel',serif", fontSize:'0.65rem',
+              color:'rgba(255,255,255,0.4)', letterSpacing:'1px'}}>FULL ACCESS</div>
+          </div>
+        </button>
+        {/* Manager button */}
+        <button onClick={() => setRole('manager')}
+          style={{width:'100%', maxWidth:'280px', padding:'20px 24px',
+            background:'linear-gradient(135deg,rgba(0,180,255,0.12),rgba(0,100,200,0.12))',
+            border:'2px solid rgba(0,180,255,0.4)', borderRadius:'16px',
+            cursor:'pointer', transition:'all 0.2s', textAlign:'left', display:'flex',
+            alignItems:'center', gap:'16px'}}>
+          <span style={{fontSize:'2rem'}}>📋</span>
+          <div>
+            <div style={{fontFamily:"'Playfair Display',serif", fontWeight:'800',
+              fontSize:'1.1rem', color:'#00ddff', marginBottom:'3px'}}>Manager</div>
+            <div style={{fontFamily:"'Cinzel',serif", fontSize:'0.65rem',
+              color:'rgba(255,255,255,0.4)', letterSpacing:'1px'}}>REPORTS ACCESS</div>
+          </div>
+        </button>
+      </div>
+    );
+  }
+
+  // ── PIN ENTRY SCREEN ──
+  const isOwner = role === 'admin';
+  const accentColor = isOwner ? '#ff44cc' : '#00ddff';
+  const roleLabel = isOwner ? '👑 Owner PIN' : '📋 Manager PIN';
+
+  return (
+    <div style={{display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+      minHeight:'60vh', padding:'20px'}}>
+      {/* Back button (only when there's a choice) */}
+      {allowManager && (
+        <button onClick={goBack}
+          style={{alignSelf:'flex-start', marginBottom:'16px', background:'none', border:'none',
+            color:'rgba(255,255,255,0.4)', cursor:'pointer', fontFamily:"'Cinzel',serif",
+            fontSize:'0.72rem', letterSpacing:'1px', display:'flex', alignItems:'center', gap:'6px'}}>
+          ← Back
+        </button>
+      )}
+      <div style={{fontSize:'2rem', marginBottom:'8px'}}>{isOwner ? '👑' : '📋'}</div>
+      <div style={{fontFamily:"'Cinzel',serif", fontSize:'0.8rem', letterSpacing:'3px',
+        color: accentColor, textTransform:'uppercase', marginBottom:'28px', fontWeight:'700',
+        textShadow:`0 0 12px ${accentColor}66`}}>
+        {roleLabel}
+      </div>
+      {/* PIN dots */}
+      <div style={{display:'flex', gap:'12px', marginBottom:'10px',
+        animation: shake ? 'shake 0.5s ease' : 'none'}}>
+        {Array.from({length: pinLen}).map((_, i) => (
+          <div key={i} style={{width:'18px', height:'18px', borderRadius:'50%',
+            background: i < pin.length ? accentColor : 'rgba(255,255,255,0.1)',
+            border: '2px solid ' + (i < pin.length ? accentColor : 'rgba(255,255,255,0.2)'),
+            transition:'all 0.15s',
+            boxShadow: i < pin.length ? `0 0 10px ${accentColor}` : 'none'}} />
+        ))}
+      </div>
+      <div style={{height:'28px', marginBottom:'20px', display:'flex', alignItems:'center'}}>
+        {error
+          ? <div style={{color:'#ff2255', fontSize:'0.78rem', fontFamily:"'Cinzel',serif",
+              letterSpacing:'1px'}}>Wrong PIN — try again</div>
+          : <div style={{color:'rgba(255,255,255,0.25)', fontSize:'0.72rem',
+              fontFamily:"'Cinzel',serif", letterSpacing:'1px'}}>
+              Enter {pinLen}-digit PIN
+            </div>
+        }
+      </div>
+      {/* Numpad */}
+      <div style={{display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'10px', width:'230px'}}>
+        {[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map((k, i) => (
+          <button key={i} onClick={() => k === '⌫' ? handleDel() : k !== '' ? handleKey(String(k)) : null}
+            style={{padding:'17px', borderRadius:'12px',
+              background: k === '' ? 'transparent'
+                : k === '⌫' ? 'rgba(255,34,85,0.1)'
+                : `rgba(255,255,255,0.06)`,
+              border: k === '' ? 'none'
+                : k === '⌫' ? '1px solid rgba(255,34,85,0.3)'
+                : `1px solid rgba(255,255,255,0.1)`,
+              color: k === '⌫' ? '#ff2255' : 'var(--white)',
+              fontFamily:"'Playfair Display',serif", fontSize:'1.25rem', fontWeight:'700',
+              cursor: k === '' ? 'default' : 'pointer', transition:'all 0.15s'}}>
+            {k}
+          </button>
+        ))}
+      </div>
+      <style>{`
+        @keyframes shake {
+          0%,100%{transform:translateX(0)}
+          20%{transform:translateX(-8px)} 40%{transform:translateX(8px)}
+          60%{transform:translateX(-6px)} 80%{transform:translateX(6px)}
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// ── POS SCREEN ─────────────────────────────────────────────
+function POSScreen({ onSaleComplete }) {
+  const [tab, setTab] = useState('refill');
+  const [cart, setCart] = useState([]);
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successData, setSuccessData] = useState(null);
+
+  const addToCart = (product) => {
+    setCart(prev => {
+      const existing = prev.find(i => i.id === product.id);
+      if (existing) return prev.map(i => i.id === product.id ? { ...i, qty: i.qty + 1 } : i);
+      return [...prev, { ...product, qty: 1 }];
+    });
+  };
+
+  const updateQty = (id, delta) => {
+    setCart(prev => {
+      const updated = prev.map(i => i.id === id ? { ...i, qty: i.qty + delta } : i).filter(i => i.qty > 0);
+      return updated;
+    });
+  };
+
+  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+
+  const handleSale = async (sale) => {
+    const sales = (await storageGet('sales')) || [];
+    sales.push(sale);
+    await storageSet('sales', sales);
+    setCart([]);
+    setShowCheckout(false);
+    setSuccessData(sale);
+    setShowSuccess(true);
+    onSaleComplete && onSaleComplete();
+    setTimeout(() => setShowSuccess(false), 2500);
+  };
+
+  return (
+    <div>
+      <div className="section-tabs">
+        {['refill', 'packaging'].map(t2 => (
+          <button key={t2} className={`tab-pill ${tab === t2 ? 'active' : ''}`} onClick={() => setTab(t2)}>
+            {t2 === 'refill' ? '💧 Refills' : '🧴 Packaging'}
+          </button>
+        ))}
+      </div>
+
+      <div className="product-grid">
+        {PRODUCTS[tab].map(p => (
+          <div key={p.id} className="product-card" onClick={() => addToCart(p)}>
+            <div className="prod-size">{p.size}</div>
+            <div className="prod-name">{p.name}</div>
+            <div className="prod-price">{fmtShort(p.price)} <span>KSH</span></div>
+          </div>
+        ))}
+      </div>
+
+      <div className="cart-section">
+        <div className="cart-title-row">
+          <div className="card-title" style={{margin:0}}>🛒 Cart</div>
+          {cart.length > 0 && <button className="clear-btn" onClick={() => setCart([])}>Clear all</button>}
+        </div>
+        {cart.length === 0
+          ? <div className="cart-empty">Tap a product to add it</div>
+          : cart.map(item => (
+            <div key={item.id} className="cart-item">
+              <div className="cart-item-name">{item.size} {item.name}</div>
+              <div className="qty-ctrl">
+                <button className="qty-btn" onClick={() => updateQty(item.id, -1)}>-</button>
+                <div className="qty-num">{item.qty}</div>
+                <button className="qty-btn" onClick={() => updateQty(item.id, 1)}>+</button>
+              </div>
+              <div className="cart-item-price">{fmtShort(item.price * item.qty)}</div>
+            </div>
+          ))
+        }
+        {cart.length > 0 && (
+          <>
+            <div className="cart-total">
+              <div className="total-label">Total</div>
+              <div className="total-amount">{fmt(total)}</div>
+            </div>
+            <button className="checkout-btn" onClick={() => setShowCheckout(true)}>
+              Proceed to Payment →
+            </button>
+          </>
+        )}
+      </div>
+
+      {showCheckout && (
+        <CheckoutModal cart={cart} total={total} onConfirm={handleSale} onClose={() => setShowCheckout(false)} />
+      )}
+      {showSuccess && successData && (
+        <div className="modal-overlay">
+          <div className="modal success-modal">
+            <div className="success-icon">✅</div>
+            <div className="success-title">Sale Complete!</div>
+            <div className="success-sub">{fmt(successData.total)} via {successData.paymentMethod}</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── CHECKOUT MODAL ─────────────────────────────────────────
+function CheckoutModal({ cart, total, onConfirm, onClose }) {
+  const [method, setMethod] = useState(null);
+  const [cash, setCash] = useState('');
+  const [mpesaRef, setMpesaRef] = useState('');
+  const change = cash ? Math.max(0, parseFloat(cash) - total) : 0;
+  const canConfirm = method === 'M-Pesa' ? mpesaRef.trim().length >= 3
+    : method === 'Cash' ? parseFloat(cash) >= total : false;
+
+  const confirm = () => {
+    const sale = {
+      id: Date.now().toString(),
+      timestamp: Date.now(),
+      date: todayKey(),
+      items: cart.map(i => ({ id: i.id, name: `${i.size} ${i.name}`, price: i.price, qty: i.qty, category: i.category, liters: i.liters })),
+      total,
+      paymentMethod: method,
+      mpesaRef: mpesaRef || null,
+      cashGiven: cash ? parseFloat(cash) : null,
+      change: change || 0,
+    };
+    onConfirm(sale);
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal">
+        <div className="modal-title">💳 Payment</div>
+        <div className="modal-total">{fmt(total)}</div>
+
+        <div style={{marginBottom:8, fontSize:'0.72rem', color:'rgba(255,255,255,0.4)'}}>SELECT PAYMENT METHOD</div>
+        <div className="pay-methods">
+          {[{key:'Cash', icon:'💵'}, {key:'M-Pesa', icon:'📱'}].map(m => (
+            <button key={m.key} className={`pay-btn ${method === m.key ? 'selected' : ''}`} onClick={() => setMethod(m.key)}>
+              <span className="pay-icon">{m.icon}</span>
+              {m.key}
+            </button>
+          ))}
+        </div>
+
+        {method === 'Cash' && (
+          <>
+            <div className="input-label">Cash Given (KSH)</div>
+            <input className="input-field" type="number" placeholder="Enter amount" value={cash}
+              onChange={e => setCash(e.target.value)} autoFocus />
+            {cash && parseFloat(cash) >= total && (
+              <div className="change-display">
+                <span className="change-label">Change</span>
+                <span className="change-amount">{fmt(change)}</span>
+              </div>
+            )}
+            {cash && parseFloat(cash) < total && (
+              <div style={{color:'#e63946', fontSize:'0.72rem', marginBottom:'10px'}}>⚠️ Amount is less than total</div>
+            )}
+          </>
+        )}
+
+        {method === 'M-Pesa' && (
+          <>
+            <div className="mpesa-ref">📱 Ask customer to send <strong>{fmt(total)}</strong> to the Mpesa Till/Paybill number, then enter the confirmation code below.</div>
+            <div className="input-label">M-Pesa Reference Code</div>
+            <input className="input-field" placeholder="e.g. RHX4A2B9K0" value={mpesaRef}
+              onChange={e => setMpesaRef(e.target.value.toUpperCase())} autoFocus />
+          </>
+        )}
+
+        <div className="modal-actions">
+          <button className="btn-cancel" onClick={onClose}>Cancel</button>
+          <button className="btn-confirm" onClick={confirm} disabled={!canConfirm}>
+            Confirm Sale ✓
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── INVENTORY SCREEN ───────────────────────────────────────
+function InventoryScreen() {
+  const [inv, setInv] = useState(null);
+  const [meterReadings, setMeterReadings] = useState([]);
+  const [meterVal, setMeterVal] = useState('');
+  const [meterDate, setMeterDate] = useState(todayKey());
+  const [stockInputs, setStockInputs] = useState({});
+
+  const defaultInv = {
+    bottles20l: 0, bottles10l: 0, bottles5l: 0, bottles1l: 0, bottles500ml: 0,
+    stickers: 0, seals: 0,
+  };
+
+  useEffect(() => {
+    (async () => {
+      const saved = await storageGet('inventory');
+      setInv(saved || defaultInv);
+      const mr = await storageGet('meter_readings');
+      setMeterReadings(mr || []);
+    })();
+  }, []);
+
+  const saveInv = async (newInv) => {
+    setInv(newInv);
+    await storageSet('inventory', newInv);
+  };
+
+  const addStock = async (key) => {
+    const val = parseInt(stockInputs[key]) || 0;
+    if (!val) return;
+    const newInv = { ...inv, [key]: (inv[key] || 0) + val };
+    await saveInv(newInv);
+    setStockInputs(prev => ({ ...prev, [key]: '' }));
+  };
+
+  const addMeterReading = async () => {
+    if (!meterVal) return;
+    const newReading = { date: meterDate, reading: parseFloat(meterVal), timestamp: Date.now() };
+    const updated = [newReading, ...meterReadings].slice(0, 30);
+    setMeterReadings(updated);
+    await storageSet('meter_readings', updated);
+    setMeterVal('');
+    setMeterDate(todayKey());
+  };
+
+  const stockItems = [
+    { key: 'bottles20l', label: '20L Bottles', icon: '🪣' },
+    { key: 'bottles10l', label: '10L Bottles', icon: '🫙' },
+    { key: 'bottles5l', label: '5L Bottles', icon: '🍶' },
+    { key: 'bottles1l', label: '1L Bottles', icon: '🍾' },
+    { key: 'bottles500ml', label: '500ml Bottles', icon: '💧' },
+    { key: 'stickers', label: 'Stickers', icon: '🏷️' },
+    { key: 'seals', label: 'Seals', icon: '🔒' },
+  ];
+
+  if (!inv) return <div className="empty-state">Loading inventory...</div>;
+
+  return (
+    <div>
+      {/* Meter Reading */}
+      <div className="card">
+        <div className="card-title">📊 Water Meter Reading</div>
+        <div className="meter-form">
+          <div className="meter-input-wrap">
+            <div className="input-label">Date</div>
+            <input className="input-field" type="date" value={meterDate} onChange={e => setMeterDate(e.target.value)} style={{marginBottom:0}} />
+          </div>
+          <div className="meter-input-wrap">
+            <div className="input-label">Reading (L)</div>
+            <input className="input-field" type="number" placeholder="e.g. 12340" value={meterVal}
+              onChange={e => setMeterVal(e.target.value)} style={{marginBottom:0}} />
+          </div>
+          <button className="meter-submit" onClick={addMeterReading}>Save</button>
+        </div>
+        {meterReadings.length > 0 && (
+          <div className="meter-history">
+            <div style={{marginTop:12}}>
+              {meterReadings.slice(0, 8).map((r, i) => {
+                const prev = meterReadings[i + 1];
+                const diff = prev ? (r.reading - prev.reading).toFixed(0) : null;
+                return (
+                  <div key={r.timestamp} className="meter-row">
+                    <span className="meter-date">{r.date}</span>
+                    <span className="meter-reading">{Number(r.reading).toLocaleString()} L</span>
+                    {diff !== null && <span className="meter-diff">+{diff} L used</span>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Stock */}
+      <div className="card">
+        <div className="card-title">📦 Packaging Stock</div>
+        <div className="inv-grid">
+          {stockItems.map(({ key, label, icon }) => (
+            <div key={key} className="inv-item">
+              <div className="inv-item-name">{icon} {label}</div>
+              <div className="inv-item-qty">{(inv[key] || 0).toLocaleString()}</div>
+              <div className="inv-ctrl">
+                <input className="inv-input" type="number" placeholder="+qty"
+                  value={stockInputs[key] || ''} onChange={e => setStockInputs(p => ({ ...p, [key]: e.target.value }))} />
+                <button className="inv-add-btn" onClick={() => addStock(key)}>ADD</button>
+                <button className="qty-btn" style={{background:'rgba(230,57,70,0.1)',borderColor:'rgba(230,57,70,0.2)',color:'#e63946'}}
+                  onClick={async () => {
+                    const newInv = { ...inv, [key]: Math.max(0, (inv[key] || 0) - 1) };
+                    await saveInv(newInv);
+                  }}>-</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── REPORTS SCREEN ─────────────────────────────────────────
+function ReportsScreen({ isAdmin = false }) {
+  const [period, setPeriod] = useState('today');
+  const [sales, setSales] = useState([]);
+  const [inv, setInv] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [cleared, setCleared] = useState(false);
+  const [lastSync, setLastSync] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+  const [devices, setDevices] = useState({});
+
+  const loadData = async (silent = false) => {
+    if (!silent) setLoading(true);
+    else setSyncing(true);
+    const s = await storageGet('sales');
+    setSales(s || []);
+    const savedInv = await storageGet('inventory');
+    setInv(savedInv || { bottles20l:0, bottles10l:0, bottles5l:0, bottles1l:0, bottles500ml:0, stickers:0, seals:0 });
+    const pres = await fetchPresence();
+    setDevices(pres || {});
+    setLastSync(new Date());
+    if (!silent) setLoading(false);
+    else setSyncing(false);
+  };
+
+  useEffect(() => {
+    loadData(false);
+    const interval = setInterval(() => loadData(true), 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const clearAllSales = async () => {
+    await storageSet('sales', []);
+    setSales([]);
+    setShowConfirm(false);
+    setCleared(true);
+    setTimeout(() => setCleared(false), 3000);
+  };
+
+  const filtered = sales.filter(s => {
+    if (period === 'today') return s.date === todayKey();
+    if (period === 'week') return s.timestamp >= weekStart();
+    if (period === 'month') return s.timestamp >= monthStart();
+    return true;
+  });
+
+  const totalRevenue = filtered.reduce((s, sale) => s + sale.total, 0);
+  const totalTransactions = filtered.length;
+  const cashSales = filtered.filter(s => s.paymentMethod === 'Cash').reduce((a, b) => a + b.total, 0);
+  const mpesaSales = filtered.filter(s => s.paymentMethod === 'M-Pesa').reduce((a, b) => a + b.total, 0);
+
+  // Product performance
+  const productStats = {};
+  ALL_PRODUCTS.forEach(p => { productStats[p.id] = { name: `${p.size} ${p.name}`, qty: 0, revenue: 0 }; });
+  filtered.forEach(sale => {
+    sale.items.forEach(item => {
+      if (!productStats[item.id]) productStats[item.id] = { name: item.name, qty: 0, revenue: 0 };
+      productStats[item.id].qty += item.qty;
+      productStats[item.id].revenue += item.price * item.qty;
+    });
+  });
+  const ranked = Object.values(productStats).filter(p => p.qty > 0).sort((a, b) => b.qty - a.qty);
+  const maxQty = ranked.length ? ranked[0].qty : 1;
+
+  const todaySales = filtered.filter(s => s.date === todayKey());
+
+  return (
+    <div>
+      {/* Live sync bar */}
+      {(() => {
+        const isLive = FIREBASE_DB_URL && syncState.ok === true;
+        const isFailed = FIREBASE_DB_URL && syncState.ok === false;
+        const isPending = FIREBASE_DB_URL && syncState.ok === null;
+        const barBg = syncing ? 'rgba(255,220,0,0.12)' : isLive ? 'rgba(0,200,80,0.1)' : isFailed ? 'rgba(255,50,50,0.1)' : 'rgba(255,180,0,0.1)';
+        const barBorder = syncing ? 'rgba(255,220,0,0.3)' : isLive ? 'rgba(0,238,136,0.3)' : isFailed ? 'rgba(255,80,80,0.4)' : 'rgba(255,180,0,0.3)';
+        const dotColor = syncing ? '#ffdd00' : isLive ? '#00ee88' : isFailed ? '#ff4444' : '#ffaa00';
+        const label = syncing ? 'SYNCING...' : isLive ? 'LIVE — ALL DEVICES' : isFailed ? 'SYNC ERROR' : isPending ? 'CONNECTING...' : 'LOCAL ONLY';
+        return (
+          <div style={{background:barBg, border:`1px solid ${barBorder}`, borderRadius:'12px',
+            padding:'10px 14px', marginBottom:'12px'}}>
+            <div style={{display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+              <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
+                <div style={{width:'9px', height:'9px', borderRadius:'50%',
+                  background:dotColor, boxShadow:`0 0 8px ${dotColor}`,
+                  animation: (syncing||isPending) ? 'pulse 0.8s ease infinite' : 'none'}} />
+                <span style={{fontFamily:"'Cinzel',serif", fontSize:'0.72rem', color:dotColor, letterSpacing:'1px', fontWeight:'700'}}>
+                  {label}
+                </span>
+                {lastSync && !syncing && (
+                  <span style={{fontSize:'0.62rem', color:'rgba(255,255,255,0.35)'}}>
+                    · {lastSync.toLocaleTimeString('en-KE',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}
+                  </span>
+                )}
+              </div>
+              <button onClick={() => loadData(true)}
+                style={{padding:'5px 14px', background:`rgba(255,255,255,0.07)`, border:`1px solid ${barBorder}`,
+                  borderRadius:'8px', color:dotColor, cursor:'pointer', fontSize:'0.72rem',
+                  fontFamily:"'Cinzel',serif", fontWeight:'700'}}>
+                🔄 Refresh
+              </button>
+            </div>
+            {isFailed && (
+              <div style={{marginTop:'6px', fontSize:'0.72rem', color:'#ff8888', fontFamily:"'Cormorant Garamond',serif"}}>
+                ⚠️ Cannot reach Firebase: {syncState.lastError} — showing local data only
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {!FIREBASE_DB_URL && (
+        <div style={{background:'rgba(255,200,0,0.1)', border:'1px solid rgba(255,200,0,0.3)',
+          borderRadius:'12px', padding:'10px 14px', marginBottom:'12px',
+          fontSize:'0.82rem', color:'#ffdd88', lineHeight:'1.6',
+          fontFamily:"'Cormorant Garamond',serif"}}>
+          ⚡ <strong>Local mode</strong> — You are only seeing sales from <em>this device</em>.
+          To see all staff sales, add your Firebase URL inside the HTML file.
+        </div>
+      )}
+
+      {/* ── LIVE DEVICES PANEL — ADMIN ONLY ── */}
+      {isAdmin && FIREBASE_DB_URL && (() => {
+        const now = Date.now();
+        const ONLINE_MS = 45000; // device is "online" if seen in last 45s
+        const IDLE_MS = 120000;  // "idle" if seen in last 2 min
+        const entries = Object.entries(devices);
+        if (entries.length === 0) return null;
+        const active = entries.filter(([id, d]) => (now - d.lastSeen) < IDLE_MS);
+        if (active.length === 0) return null;
+
+        const deviceEmoji = (name) => {
+          if (/iphone/i.test(name)) return '📱';
+          if (/ipad/i.test(name)) return '📟';
+          if (/android/i.test(name)) return '📱';
+          if (/macbook|mac/i.test(name)) return '💻';
+          if (/windows|pc/i.test(name)) return '🖥️';
+          return '📲';
+        };
+        const screenLabel = (s) => ({pos:'POS', inventory:'Stock', reports:'Reports', backdate:'Backdate'}[s] || s);
+        const screenColor = (s) => ({pos:'#00ddff', inventory:'#ffdd00', reports:'#ff44cc', backdate:'#00ee88'}[s] || '#aaa');
+
+        return (
+          <div style={{background:'linear-gradient(135deg,rgba(30,10,70,0.9),rgba(10,5,35,0.95))',
+            border:'1px solid rgba(150,60,255,0.35)', borderRadius:'14px',
+            padding:'12px 14px', marginBottom:'12px'}}>
+            <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px'}}>
+              <div style={{fontFamily:"'Cinzel',serif", fontSize:'0.72rem', fontWeight:'700',
+                color:'#ff88ee', letterSpacing:'2px', textTransform:'uppercase'}}>
+                📡 Connected Devices
+              </div>
+              <div style={{fontFamily:"'Cinzel',serif", fontSize:'0.65rem', color:'rgba(255,255,255,0.4)'}}>
+                {active.length} device{active.length !== 1 ? 's' : ''} active
+              </div>
+            </div>
+            <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
+              {active.sort((a,b) => b[1].lastSeen - a[1].lastSeen).map(([id, d]) => {
+                const ago = now - d.lastSeen;
+                const isOnline = ago < ONLINE_MS;
+                const isMe = id === DEVICE_ID;
+                const dotColor = isOnline ? '#00ee88' : '#ffaa00';
+                const agoText = ago < 10000 ? 'just now'
+                  : ago < 60000 ? `${Math.floor(ago/1000)}s ago`
+                  : `${Math.floor(ago/60000)}m ago`;
+                return (
+                  <div key={id} style={{display:'flex', alignItems:'center', gap:'10px',
+                    padding:'8px 12px', borderRadius:'10px',
+                    background: isMe ? 'rgba(255,68,204,0.1)' : 'rgba(255,255,255,0.04)',
+                    border: isMe ? '1px solid rgba(255,68,204,0.3)' : '1px solid rgba(255,255,255,0.07)'}}>
+                    {/* Online dot */}
+                    <div style={{width:'9px', height:'9px', borderRadius:'50%', flexShrink:0,
+                      background:dotColor, boxShadow:`0 0 7px ${dotColor}`,
+                      animation: isOnline ? 'pulse 2s ease infinite' : 'none'}} />
+                    {/* Emoji + name */}
+                    <div style={{fontSize:'1.1rem'}}>{deviceEmoji(d.name)}</div>
+                    <div style={{flex:1, minWidth:0}}>
+                      <div style={{fontFamily:"'Playfair Display',serif", fontWeight:'700',
+                        fontSize:'0.92rem', color:'#fff', display:'flex', alignItems:'center', gap:'6px'}}>
+                        {d.name}
+                        {isMe && <span style={{fontSize:'0.6rem', padding:'1px 6px',
+                          background:'rgba(255,68,204,0.2)', border:'1px solid rgba(255,68,204,0.4)',
+                          borderRadius:'8px', color:'#ff88ee', fontFamily:"'Cinzel',serif",
+                          letterSpacing:'1px'}}>YOU</span>}
+                      </div>
+                      <div style={{fontSize:'0.68rem', color:'rgba(255,255,255,0.35)', marginTop:'1px'}}>
+                        {agoText}
+                      </div>
+                    </div>
+                    {/* Screen badge */}
+                    {d.screen && (
+                      <div style={{padding:'3px 10px', borderRadius:'8px', fontSize:'0.65rem',
+                        fontFamily:"'Cinzel',serif", fontWeight:'600', letterSpacing:'0.5px',
+                        background:`rgba(${screenColor(d.screen).slice(1).match(/../g).map(x=>parseInt(x,16)).join(',')},0.12)`,
+                        border:`1px solid ${screenColor(d.screen)}44`,
+                        color:screenColor(d.screen)}}>
+                        {screenLabel(d.screen)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
+      <div className="report-tabs section-tabs">
+        {[['today','Today'],['week','This Week'],['month','Month'],['all','All Time']].map(([k,l]) => (
+          <button key={k} className={`tab-pill ${period === k ? 'active' : ''}`} onClick={() => setPeriod(k)}>{l}</button>
+        ))}
+      </div>
+
+      {loading ? <div className="empty-state">Loading...</div> : (
+        <>
+          {/* Combined Revenue Banner */}
+          <div style={{background:'linear-gradient(135deg,#0d1e55,#162d70)', border:'1px solid rgba(0,192,240,0.3)',
+            borderRadius:'14px', padding:'16px', marginBottom:'14px', textAlign:'center'}}>
+            <div style={{fontFamily:"'Cinzel',serif", fontSize:'0.65rem', letterSpacing:'2px',
+              color:'rgba(255,255,255,0.4)', textTransform:'uppercase', marginBottom:'6px'}}>
+              Total Revenue — {period === 'today' ? 'Today' : period === 'week' ? 'This Week' : period === 'month' ? 'This Month' : 'All Time'}
+            </div>
+            <div style={{fontFamily:"'Playfair Display',serif", fontWeight:'900', fontSize:'2rem', color:'var(--aqua)',
+              letterSpacing:'1px'}}>
+              {fmt(totalRevenue)}
+            </div>
+            <div style={{fontFamily:"'Cinzel',serif", fontSize:'0.6rem', color:'rgba(255,255,255,0.3)',
+              letterSpacing:'1px', marginTop:'4px'}}>
+              {totalTransactions} transaction{totalTransactions !== 1 ? 's' : ''}
+            </div>
+          </div>
+
+          {/* Cash vs M-Pesa breakdown */}
+          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'14px'}}>
+            <div className="stat-card" style={{borderColor:'rgba(46,196,182,0.3)', background:'rgba(46,196,182,0.06)'}}>
+              <div className="stat-label">💵 Cash</div>
+              <div className="stat-value green" style={{fontSize:'1.05rem'}}>{fmt(cashSales)}</div>
+              <div style={{marginTop:'6px', height:'3px', borderRadius:'2px', background:'rgba(255,255,255,0.05)'}}>
+                <div style={{height:'3px', borderRadius:'2px', background:'var(--green)',
+                  width: totalRevenue ? `${(cashSales/totalRevenue*100).toFixed(0)}%` : '0%'}} />
+              </div>
+              <div style={{fontFamily:"'Cinzel',serif", fontSize:'0.58rem', color:'rgba(46,196,182,0.6)', marginTop:'4px'}}>
+                {totalRevenue ? (cashSales/totalRevenue*100).toFixed(0) : 0}% of total
+              </div>
+            </div>
+            <div className="stat-card" style={{borderColor:'rgba(200,95,200,0.3)', background:'rgba(200,95,200,0.06)'}}>
+              <div className="stat-label">📱 M-Pesa</div>
+              <div className="stat-value" style={{fontSize:'1.05rem', color:'var(--gold)'}}>{fmt(mpesaSales)}</div>
+              <div style={{marginTop:'6px', height:'3px', borderRadius:'2px', background:'rgba(255,255,255,0.05)'}}>
+                <div style={{height:'3px', borderRadius:'2px', background:'var(--gold)',
+                  width: totalRevenue ? `${(mpesaSales/totalRevenue*100).toFixed(0)}%` : '0%'}} />
+              </div>
+              <div style={{fontFamily:"'Cinzel',serif", fontSize:'0.58rem', color:'rgba(200,95,200,0.6)', marginTop:'4px'}}>
+                {totalRevenue ? (mpesaSales/totalRevenue*100).toFixed(0) : 0}% of total
+              </div>
+            </div>
+          </div>
+
+          {/* Refill vs Packaging breakdown */}
+          <div className="stat-grid" style={{marginBottom:'14px'}}>
+            <div className="stat-card">
+              <div className="stat-label">💧 Refill Revenue</div>
+              <div className="stat-value teal" style={{fontSize:'1rem'}}>
+                {fmt(filtered.reduce((s,sale) => s + sale.items.filter(i=>i.category==='refill').reduce((a,b)=>a+b.price*b.qty,0), 0))}
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">🧴 Packaging Revenue</div>
+              <div className="stat-value" style={{fontSize:'1rem', color:'#a0d0ff'}}>
+                {fmt(filtered.reduce((s,sale) => s + sale.items.filter(i=>i.category==='packaging').reduce((a,b)=>a+b.price*b.qty,0), 0))}
+              </div>
+            </div>
+          </div>
+
+          {/* ── PACKAGING STOCK REMAINING ── */}
+          {inv && (() => {
+            const stockItems = [
+              { key:'bottles20l', label:'20L Bottles', icon:'🪣', warn:5, critical:2 },
+              { key:'bottles10l', label:'10L Bottles', icon:'🫙', warn:10, critical:3 },
+              { key:'bottles5l',  label:'5L Bottles',  icon:'🍶', warn:15, critical:5 },
+              { key:'bottles1l',  label:'1L Bottles',  icon:'🍾', warn:20, critical:5 },
+              { key:'bottles500ml', label:'500ml Bottles', icon:'💧', warn:24, critical:6 },
+              { key:'stickers',   label:'Stickers',    icon:'🏷️', warn:50, critical:10 },
+              { key:'seals',      label:'Seals',       icon:'🔒', warn:50, critical:10 },
+            ];
+            const getColor = (qty, warn, critical) => {
+              if (qty <= critical) return { bg:'rgba(255,34,85,0.12)', border:'rgba(255,34,85,0.5)', text:'#ff2255', bar:'#ff2255', label:'⛔ Critical' };
+              if (qty <= warn)     return { bg:'rgba(255,180,0,0.1)',  border:'rgba(255,200,0,0.5)',  text:'#ffdd00', bar:'#ffdd00', label:'⚠️ Low' };
+              return                      { bg:'rgba(0,238,136,0.08)', border:'rgba(0,238,136,0.3)',  text:'#00ee88', bar:'#00ee88', label:'✅ Good' };
+            };
+            const maxQtyForBar = Math.max(...stockItems.map(s => inv[s.key] || 0), 1);
+            return (
+              <div className="card" style={{marginBottom:'14px'}}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px'}}>
+                  <div className="card-title" style={{margin:0}}>📦 Packaging Stock</div>
+                  <div style={{fontFamily:"'Cinzel',serif", fontSize:'0.62rem', color:'rgba(255,255,255,0.35)', letterSpacing:'1px'}}>LIVE LEVELS</div>
+                </div>
+                <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
+                  {stockItems.map(({ key, label, icon, warn, critical }) => {
+                    const qty = inv[key] || 0;
+                    const c = getColor(qty, warn, critical);
+                    const barW = Math.min(100, (qty / Math.max(warn * 2, 1)) * 100);
+                    return (
+                      <div key={key} style={{background:c.bg, border:`1px solid ${c.border}`,
+                        borderRadius:'12px', padding:'10px 14px'}}>
+                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'6px'}}>
+                          <div style={{display:'flex', alignItems:'center', gap:'7px'}}>
+                            <span style={{fontSize:'1.1rem'}}>{icon}</span>
+                            <span style={{fontFamily:"'Cinzel',serif", fontSize:'0.75rem', color:'rgba(255,255,255,0.8)', fontWeight:'600'}}>{label}</span>
+                          </div>
+                          <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
+                            <span style={{fontFamily:"'Playfair Display',serif", fontWeight:'900', fontSize:'1.2rem', color:c.text}}>{qty.toLocaleString()}</span>
+                            <span style={{fontSize:'0.65rem', fontFamily:"'Cinzel',serif", color:c.text, opacity:0.85}}>{c.label}</span>
+                          </div>
+                        </div>
+                        <div style={{height:'5px', background:'rgba(255,255,255,0.08)', borderRadius:'3px'}}>
+                          <div style={{height:'5px', borderRadius:'3px', width:`${barW}%`,
+                            background:`linear-gradient(90deg,${c.bar}aa,${c.bar})`,
+                            transition:'width 0.4s ease'}} />
+                        </div>
+                        {qty <= warn && (
+                          <div style={{marginTop:'6px', fontSize:'0.72rem', color:c.text, fontFamily:"'Cormorant Garamond',serif",
+                            fontStyle:'italic', opacity:0.85}}>
+                            {qty <= critical ? `🚨 Restock immediately — only ${qty} left!` : `Add stock soon — ${qty} remaining`}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
+          {ranked.length > 0 && (
+            <div className="card">
+              <div className="card-title">📈 Product Performance</div>
+              <div className="ranking-list">
+                {ranked.map((p, i) => (
+                  <div key={p.name} className="rank-item">
+                    <div className={`rank-num ${i === 0 ? 'top' : ''}`}>
+                      {i === 0 ? '🏆' : `#${i + 1}`}
+                    </div>
+                    <div className="rank-name">{p.name}</div>
+                    <div className="rank-bar-wrap">
+                      <div className={`rank-bar ${i === ranked.length - 1 && ranked.length > 1 ? 'slow' : ''}`}
+                        style={{ width: `${(p.qty / maxQty) * 100}%` }} />
+                    </div>
+                    <div className="rank-qty">{p.qty} sold</div>
+                    <div className="rank-rev">{fmtShort(p.revenue)}</div>
+                  </div>
+                ))}
+              </div>
+              {ranked.length > 1 && (
+                <div style={{marginTop:10, padding:'8px 10px', background:'rgba(230,57,70,0.08)', borderRadius:8, border:'1px solid rgba(230,57,70,0.2)', fontSize:'0.72rem', color:'#e63946'}}>
+                  🐢 Slowest: <strong>{ranked[ranked.length - 1].name}</strong> — only {ranked[ranked.length - 1].qty} sold
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Success banner */}
+          {cleared && (
+            <div style={{background:'linear-gradient(135deg,rgba(0,238,136,0.15),rgba(0,200,100,0.1))',
+              border:'1px solid rgba(0,238,136,0.4)', borderRadius:'14px', padding:'14px 18px',
+              marginBottom:'14px', display:'flex', alignItems:'center', gap:'10px'}}>
+              <span style={{fontSize:'1.4rem'}}>✅</span>
+              <div>
+                <div style={{fontFamily:"'Playfair Display',serif", fontWeight:'800', fontSize:'1rem', color:'#00ee88'}}>All Sales Cleared</div>
+                <div style={{fontSize:'0.8rem', color:'rgba(255,255,255,0.5)', marginTop:'2px'}}>Sales history has been permanently deleted</div>
+              </div>
+            </div>
+          )}
+
+          <div className="card">
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px'}}>
+              <div className="card-title" style={{margin:0}}>📋 Sales Log</div>
+              {sales.length > 0 && (
+                <button onClick={() => setShowConfirm(true)}
+                  style={{padding:'7px 14px', background:'rgba(255,34,85,0.12)', border:'1px solid rgba(255,34,85,0.45)',
+                    borderRadius:'10px', color:'#ff2255', cursor:'pointer', fontSize:'0.78rem',
+                    fontFamily:"'Cinzel',serif", fontWeight:'700', letterSpacing:'0.5px',
+                    display:'flex', alignItems:'center', gap:'5px'}}>
+                  🗑️ Clear All
+                </button>
+              )}
+            </div>
+            {filtered.length === 0
+              ? <div className="empty-state">No sales in this period</div>
+              : [...filtered].reverse().slice(0, 30).map(sale => (
+                <div key={sale.id} className="sale-row">
+                  <div className="sale-row-top">
+                    <span className="sale-time">{toTimeStr(sale.timestamp)} · {toDateStr(sale.timestamp)}</span>
+                    <span className="sale-total-val">{fmt(sale.total)}</span>
+                  </div>
+                  <div className="sale-items">
+                    {sale.items.map(i => `${i.name} x${i.qty}`).join(', ')}
+                    {' '}
+                    <span className={`sale-method ${sale.paymentMethod === 'Cash' ? 'method-cash' : 'method-mpesa'}`}>
+                      {sale.paymentMethod === 'Cash' ? '💵 Cash' : '📱 M-Pesa'}
+                    </span>
+                    {sale.mpesaRef && <span style={{fontSize:'0.65rem', color:'rgba(255,255,255,0.3)', marginLeft:4}}>({sale.mpesaRef})</span>}
+                    {sale.change > 0 && <span style={{fontSize:'0.65rem', color:'var(--gold)', marginLeft:4}}>Change: {fmt(sale.change)}</span>}
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+        </>
+      )}
+
+      {/* CONFIRMATION MODAL */}
+      {showConfirm && (
+        <div className="modal-overlay">
+          <div className="modal" style={{textAlign:'center', maxWidth:'340px'}}>
+            <div style={{fontSize:'3.5rem', marginBottom:'12px'}}>⚠️</div>
+            <div style={{fontFamily:"'Playfair Display',serif", fontWeight:'900', fontSize:'1.3rem',
+              color:'#ff2255', marginBottom:'10px'}}>
+              Delete All Sales?
+            </div>
+            <div style={{fontSize:'0.95rem', color:'rgba(255,255,255,0.6)', lineHeight:'1.6',
+              marginBottom:'8px', fontFamily:"'Cormorant Garamond',serif"}}>
+              This will permanently erase <strong style={{color:'#ff88ee'}}>{sales.length} sale record{sales.length !== 1 ? 's' : ''}</strong> from this device.
+            </div>
+            <div style={{padding:'10px 14px', background:'rgba(255,34,85,0.1)', border:'1px solid rgba(255,34,85,0.3)',
+              borderRadius:'10px', marginBottom:'20px', fontSize:'0.82rem', color:'#ff6680',
+              fontFamily:"'Cinzel',serif", letterSpacing:'0.3px'}}>
+              ⛔ This action cannot be undone
+            </div>
+            <div style={{display:'flex', gap:'10px'}}>
+              <button onClick={() => setShowConfirm(false)}
+                style={{flex:1, padding:'13px', background:'rgba(255,255,255,0.07)',
+                  border:'1px solid rgba(255,255,255,0.2)', borderRadius:'12px',
+                  color:'rgba(255,255,255,0.8)', cursor:'pointer',
+                  fontFamily:"'Cinzel',serif", fontWeight:'600', fontSize:'0.88rem'}}>
+                Cancel
+              </button>
+              <button onClick={clearAllSales}
+                style={{flex:1, padding:'13px', background:'linear-gradient(135deg,#cc0033,#ff2255)',
+                  border:'none', borderRadius:'12px', color:'#fff', cursor:'pointer',
+                  fontFamily:"'Playfair Display',serif", fontWeight:'800', fontSize:'0.95rem',
+                  boxShadow:'0 4px 16px rgba(255,34,85,0.4)'}}>
+                🗑️ Yes, Delete All
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── BACKDATE SCREEN ────────────────────────────────────────
+function BackdateScreen({ onSaleComplete }) {
+  const [date, setDate] = useState(todayKey());
+  const [time, setTime] = useState('12:00');
+  const [tab, setTab] = useState('refill');
+  const [cart, setCart] = useState([]);
+  const [method, setMethod] = useState(null);
+  const [mpesaRef, setMpesaRef] = useState('');
+  const [cash, setCash] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
+  const [batchMode, setBatchMode] = useState(false);
+  const [batchText, setBatchText] = useState('');
+  const [batchError, setBatchError] = useState('');
+
+  const addToCart = (product) => {
+    setCart(prev => {
+      const existing = prev.find(i => i.id === product.id);
+      if (existing) return prev.map(i => i.id === product.id ? { ...i, qty: i.qty + 1 } : i);
+      return [...prev, { ...product, qty: 1 }];
+    });
+  };
+
+  const updateQty = (id, delta) => {
+    setCart(prev => prev.map(i => i.id === id ? { ...i, qty: i.qty + delta } : i).filter(i => i.qty > 0));
+  };
+
+  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const change = cash ? Math.max(0, parseFloat(cash) - total) : 0;
+  const canSave = cart.length > 0 && method && (method === 'M-Pesa' ? mpesaRef.trim().length >= 3 : parseFloat(cash) >= total);
+
+  const saveSale = async () => {
+    setSaving(true);
+    const [h, m] = time.split(':');
+    const ts = new Date(`${date}T${h}:${m}:00`).getTime();
+    const sale = {
+      id: `bd_${Date.now()}`,
+      timestamp: ts,
+      date,
+      backdated: true,
+      items: cart.map(i => ({ id: i.id, name: `${i.size} ${i.name}`, price: i.price, qty: i.qty, category: i.category, liters: i.liters })),
+      total,
+      paymentMethod: method,
+      mpesaRef: mpesaRef || null,
+      cashGiven: cash ? parseFloat(cash) : null,
+      change: change || 0,
+    };
+    const sales = (await storageGet('sales')) || [];
+    sales.push(sale);
+    await storageSet('sales', sales);
+    setCart([]);
+    setMethod(null);
+    setCash('');
+    setMpesaRef('');
+    setSaving(false);
+    setSuccessMsg(`✅ Sale of ${fmt(total)} saved for ${date}`);
+    onSaleComplete && onSaleComplete();
+    setTimeout(() => setSuccessMsg(''), 3000);
+  };
+
+  // Batch import: parse simple CSV-like text
+  // Format per line: date, productID, qty, method (optional mpesa ref)
+  // e.g. "2025-01-15, r20l, 3, Cash"
+  const productMap = {};
+  ALL_PRODUCTS.forEach(p => { productMap[p.id] = p; productMap[p.size.toLowerCase().replace(' ','')] = p; });
+
+  const parseBatch = async () => {
+    setBatchError('');
+    const lines = batchText.trim().split('\n').filter(l => l.trim());
+    const sales = (await storageGet('sales')) || [];
+    let added = 0;
+    const errors = [];
+    for (const line of lines) {
+      const parts = line.split(',').map(s => s.trim());
+      if (parts.length < 4) { errors.push(`Bad line: "${line}"`); continue; }
+      const [d, pid, qtyStr, meth, ref] = parts;
+      const prod = productMap[pid.toLowerCase()] || ALL_PRODUCTS.find(p => p.size.toLowerCase() === pid.toLowerCase() && p.name.toLowerCase() === 'refill');
+      if (!prod) { errors.push(`Unknown product "${pid}" in: "${line}"`); continue; }
+      const qty = parseInt(qtyStr);
+      if (!qty || qty < 1) { errors.push(`Bad qty in: "${line}"`); continue; }
+      const mNorm = meth.toLowerCase().includes('mpesa') || meth.toLowerCase().includes('m-pesa') ? 'M-Pesa' : 'Cash';
+      const sale = {
+        id: `bd_${Date.now()}_${added}`,
+        timestamp: new Date(`${d}T12:00:00`).getTime(),
+        date: d,
+        backdated: true,
+        items: [{ id: prod.id, name: `${prod.size} ${prod.name}`, price: prod.price, qty, category: prod.category, liters: prod.liters }],
+        total: prod.price * qty,
+        paymentMethod: mNorm,
+        mpesaRef: ref || null,
+        cashGiven: null, change: 0,
+      };
+      sales.push(sale);
+      added++;
+    }
+    await storageSet('sales', sales);
+    if (errors.length) setBatchError(errors.join('\n'));
+    else {
+      setBatchText('');
+      setSuccessMsg(`✅ ${added} sales imported successfully!`);
+      onSaleComplete && onSaleComplete();
+      setTimeout(() => setSuccessMsg(''), 3000);
+    }
+  };
+
+  return (
+    <div>
+      <div style={{marginBottom:14}}>
+        <div style={{display:'flex',gap:8,marginBottom:4}}>
+          <button className={`tab-pill ${!batchMode ? 'active' : ''}`} onClick={() => setBatchMode(false)}>📝 Single Entry</button>
+          <button className={`tab-pill ${batchMode ? 'active' : ''}`} onClick={() => setBatchMode(true)}>📋 Bulk Import</button>
+        </div>
+        <div style={{fontSize:'0.7rem',color:'rgba(255,255,255,0.35)'}}>Enter historical sales from January onwards</div>
+      </div>
+
+      {successMsg && (
+        <div style={{background:'rgba(46,196,182,0.12)',border:'1px solid rgba(46,196,182,0.3)',borderRadius:10,
+          padding:'10px 14px',marginBottom:12,fontSize:'0.8rem',color:'var(--green)'}}>
+          {successMsg}
+        </div>
+      )}
+
+      {!batchMode ? (
+        <>
+          {/* Date + Time */}
+          <div className="card">
+            <div className="card-title">📅 Sale Date & Time</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+              <div>
+                <div className="input-label">Date</div>
+                <input className="input-field" type="date" value={date}
+                  max={todayKey()} min="2025-01-01"
+                  onChange={e => setDate(e.target.value)} style={{marginBottom:0}} />
+              </div>
+              <div>
+                <div className="input-label">Time (approx)</div>
+                <input className="input-field" type="time" value={time}
+                  onChange={e => setTime(e.target.value)} style={{marginBottom:0}} />
+              </div>
+            </div>
+          </div>
+
+          {/* Products */}
+          <div className="section-tabs">
+            {['refill', 'packaging'].map(t2 => (
+              <button key={t2} className={`tab-pill ${tab === t2 ? 'active' : ''}`} onClick={() => setTab(t2)}>
+                {t2 === 'refill' ? '💧 Refills' : '🧴 Packaging'}
+              </button>
+            ))}
+          </div>
+          <div className="product-grid">
+            {PRODUCTS[tab].map(p => (
+              <div key={p.id} className="product-card" onClick={() => addToCart(p)}>
+                <div className="prod-size">{p.size}</div>
+                <div className="prod-name">{p.name}</div>
+                <div className="prod-price">{fmtShort(p.price)} <span>KSH</span></div>
+              </div>
+            ))}
+          </div>
+
+          {/* Cart */}
+          <div className="cart-section">
+            <div className="cart-title-row">
+              <div className="card-title" style={{margin:0}}>🛒 Items</div>
+              {cart.length > 0 && <button className="clear-btn" onClick={() => setCart([])}>Clear</button>}
+            </div>
+            {cart.length === 0
+              ? <div className="cart-empty">Tap products to add</div>
+              : cart.map(item => (
+                <div key={item.id} className="cart-item">
+                  <div className="cart-item-name">{item.size} {item.name}</div>
+                  <div className="qty-ctrl">
+                    <button className="qty-btn" onClick={() => updateQty(item.id, -1)}>-</button>
+                    <div className="qty-num">{item.qty}</div>
+                    <button className="qty-btn" onClick={() => updateQty(item.id, 1)}>+</button>
+                  </div>
+                  <div className="cart-item-price">{fmtShort(item.price * item.qty)}</div>
+                </div>
+              ))
+            }
+
+            {cart.length > 0 && (
+              <>
+                <div className="cart-total">
+                  <div className="total-label">Total</div>
+                  <div className="total-amount">{fmt(total)}</div>
+                </div>
+
+                {/* Payment method */}
+                <div style={{marginTop:12}}>
+                  <div className="input-label" style={{marginBottom:8}}>Payment Method</div>
+                  <div className="pay-methods">
+                    {[{key:'Cash', icon:'💵'}, {key:'M-Pesa', icon:'📱'}].map(m => (
+                      <button key={m.key} className={`pay-btn ${method === m.key ? 'selected' : ''}`} onClick={() => setMethod(m.key)}>
+                        <span className="pay-icon">{m.icon}</span>{m.key}
+                      </button>
+                    ))}
+                  </div>
+                  {method === 'Cash' && (
+                    <>
+                      <div className="input-label">Cash Given</div>
+                      <input className="input-field" type="number" placeholder="Enter cash amount"
+                        value={cash} onChange={e => setCash(e.target.value)} />
+                    </>
+                  )}
+                  {method === 'M-Pesa' && (
+                    <>
+                      <div className="input-label">M-Pesa Ref (optional for backdated)</div>
+                      <input className="input-field" placeholder="e.g. RHX4A2B9K0 or UNKNOWN"
+                        value={mpesaRef} onChange={e => setMpesaRef(e.target.value.toUpperCase())} />
+                    </>
+                  )}
+                </div>
+
+                <button className="checkout-btn" onClick={saveSale}
+                  disabled={!canSave || saving} style={{marginTop:10}}>
+                  {saving ? 'Saving...' : `💾 Save Sale for ${date}`}
+                </button>
+              </>
+            )}
+          </div>
+        </>
+      ) : (
+        /* Bulk Import */
+        <div className="card">
+          <div className="card-title">📋 Bulk Import</div>
+          <div style={{fontSize:'0.73rem',color:'rgba(255,255,255,0.45)',marginBottom:12,lineHeight:1.6}}>
+            Enter one sale per line in this format:<br/>
+            <code style={{color:'var(--aqua)',background:'rgba(0,180,216,0.1)',padding:'2px 6px',borderRadius:4}}>
+              date, productID, qty, method
+            </code><br/><br/>
+            <strong style={{color:'var(--foam)'}}>Product IDs:</strong><br/>
+            {ALL_PRODUCTS.map(p => <span key={p.id} style={{display:'inline-block',margin:'1px 4px 1px 0',padding:'1px 6px',
+              background:'rgba(255,255,255,0.06)',borderRadius:4,fontSize:'0.66rem',color:'var(--teal)'}}>
+              {p.id} = {p.size} {p.name} ({p.price} KSH)
+            </span>)}<br/><br/>
+            <strong style={{color:'var(--foam)'}}>Example:</strong><br/>
+            <code style={{color:'rgba(255,255,255,0.4)',fontSize:'0.68rem'}}>
+              2025-01-10, r20l, 5, Cash<br/>
+              2025-01-10, p1l, 12, M-Pesa, RHX4A2B9K0<br/>
+              2025-01-11, r10l, 3, Cash
+            </code>
+          </div>
+          <textarea
+            style={{width:'100%',minHeight:180,padding:'12px',background:'rgba(255,255,255,0.04)',
+              border:'1px solid var(--border)',borderRadius:10,color:'var(--white)',fontSize:'0.78rem',
+              fontFamily:'monospace',lineHeight:1.7,resize:'vertical'}}
+            placeholder={"2025-01-10, r20l, 5, Cash\n2025-01-10, p1l, 12, M-Pesa"}
+            value={batchText}
+            onChange={e => setBatchText(e.target.value)}
+          />
+          {batchError && (
+            <div style={{background:'rgba(230,57,70,0.1)',border:'1px solid rgba(230,57,70,0.3)',borderRadius:8,
+              padding:'10px',marginTop:8,fontSize:'0.7rem',color:'#e63946',whiteSpace:'pre-wrap'}}>
+              {batchError}
+            </div>
+          )}
+          <button className="checkout-btn" style={{marginTop:12}}
+            onClick={parseBatch} disabled={!batchText.trim()}>
+            📥 Import All Sales
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── MAIN APP ───────────────────────────────────────────────
+function App() {
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [screen, setScreen] = useState('pos');
+  const [salesCount, setSalesCount] = useState(0);
+  const [adminRole, setAdminRole] = useState(null); // null | 'admin' | 'manager'
+  const [showDbSetup, setShowDbSetup] = useState(false);
+
+  const handleNavClick = (key) => {
+    const isAdminScreen = key === 'reports' || key === 'backdate';
+    setAdminRole(null);
+    window.__currentScreen__ = key;
+    heartbeat();
+    if (isAdminScreen) {
+      setScreen(key + '_lock');
+    } else {
+      setScreen(key);
+    }
+  };
+
+  if (showDbSetup) return <FirebaseSetup onSave={() => setShowDbSetup(false)} onSkip={() => setShowDbSetup(false)} />;
+  if (!loggedIn) return <LoginGate onEnter={() => setLoggedIn(true)} />;
+
+  return (
+    <>
+      <style>{STYLE}</style>
+      <div className="pos-wrap">
+        {/* Header */}
+        <div className="header">
+          <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+            <img src="data:image/png;base64,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" alt="Mi Vida Logo" 
+              style={{height:'52px', width:'auto', objectFit:'contain'}} />
+            <div>
+              <div className="brand-sub" style={{marginTop:'2px'}}>Mangu Branch</div>
+              <div style={{fontSize:'0.58rem', color:'rgba(255,255,255,0.3)', letterSpacing:'1.5px', textTransform:'uppercase'}}>Point of Sale</div>
+            </div>
+          </div>
+          <Clock />
+        </div>
+
+        {/* Content */}
+        <div className="content">
+          {screen === 'pos' && <POSScreen onSaleComplete={() => setSalesCount(c => c + 1)} />}
+          {screen === 'inventory' && <InventoryScreen />}
+          {screen === 'reports' && <ReportsScreen key={salesCount} isAdmin={adminRole === 'admin'} />}
+          {screen === 'backdate' && <BackdateScreen onSaleComplete={() => setSalesCount(c => c + 1)} />}
+          {screen === 'reports_lock' && <PinLock allowManager={true} onUnlock={(role) => { setAdminRole(role); setScreen('reports'); }} />}
+          {screen === 'backdate_lock' && <PinLock onUnlock={(role) => { setAdminRole(role); setScreen('backdate'); }} />}
+        </div>
+
+        {/* Bottom Nav */}
+        <div className="bottom-nav">
+          {[
+            { key: 'pos', icon: '🛒', label: 'POS' },
+            { key: 'backdate', icon: '📅', label: 'Backdate', admin: true },
+            { key: 'inventory', icon: '📦', label: 'Stock' },
+            { key: 'reports', icon: '📊', label: 'Reports', admin: true },
+          ].map(n => (
+            <button key={n.key} className={`nav-btn ${screen === n.key || screen === n.key+'_lock' ? 'active' : ''}`} onClick={() => handleNavClick(n.key)}>
+              <div className="nav-icon" style={{position:'relative'}}>
+                {n.icon}
+                {n.admin && !adminRole && <span style={{position:'absolute',top:'-2px',right:'-2px',
+                  fontSize:'0.5rem',lineHeight:1}}>🔒</span>}
+              </div>
+              {n.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
+    const container = document.getElementById('root');
+    const root = ReactDOM.createRoot(container);
+    root.render(<App />);
+  </script>
+</body>
+</html>
